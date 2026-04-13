@@ -1,7 +1,7 @@
 import createPersistedState from 'vuex-persistedstate';
 
 // 需要同步到云端的 key（不含 isAuthenticated、accessPassword 等敏感/临时 key）
-const CLOUD_KEYS = ['dark', 'setting', 'customTools', 'sectionNames', 'toolIcons'];
+const CLOUD_KEYS = ['dark', 'setting', 'customTools', 'sectionNames', 'toolIcons', 'customSections', 'sectionOrder'];
 
 async function loadFromCloud(store) {
     try {
@@ -61,7 +61,7 @@ export default ({ store }) => {
 
         createPersistedState({
             key: 'miku_vuex',
-            paths: ['dark', 'setting', 'syncTime', 'noticeId', 'welcome', 'isAuthenticated', 'accessPassword', 'customTools', 'sectionNames', 'toolIcons']
+            paths: ['dark', 'setting', 'syncTime', 'noticeId', 'welcome', 'isAuthenticated', 'accessPassword', 'customTools', 'sectionNames', 'toolIcons', 'customSections', 'sectionOrder']
         })(store);
 
         // 从云端加载（优先级最高，覆盖 localStorage）

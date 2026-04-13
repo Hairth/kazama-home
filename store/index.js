@@ -39,6 +39,14 @@ export const state = () => ({
             customUrl: '',
             blur: 4,
             opacity: 50
+        },
+        sakura: {
+            enabled: false,
+            fallSpeed: 1,
+            maxSize: 14,
+            minSize: 10,
+            delay: 300,
+            colorPreset: 0
         }
     },
     globalLoading: false,
@@ -50,7 +58,9 @@ export const state = () => ({
     accessPassword: 'mikutools',
     customTools: [],
     sectionNames: {},
-    toolIcons: {}
+    toolIcons: {},
+    customSections: [],
+    sectionOrder: []
 });
 
 const disabledMouseWheel = e => e.stopPropagation();
@@ -126,5 +136,35 @@ export const mutations = {
         if (!icon) delete next[key];
         else next[key] = icon;
         state.toolIcons = next;
+    },
+    UPDATE_CUSTOM_TOOL(state, { id, name, url }) {
+        const idx = state.customTools.findIndex(t => t.id === id);
+        if (idx !== -1) {
+            state.customTools.splice(idx, 1, { ...state.customTools[idx], name, url });
+        }
+    },
+    ADD_CUSTOM_SECTION(state, section) {
+        state.customSections.push(section);
+    },
+    RENAME_CUSTOM_SECTION(state, { id, name }) {
+        const idx = state.customSections.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            const oldTitle = state.customSections[idx].title;
+            state.customSections.splice(idx, 1, { ...state.customSections[idx], title: name });
+            state.customTools = state.customTools.map(t =>
+                t.sectionTitle === oldTitle ? { ...t, sectionTitle: name } : t
+            );
+        }
+    },
+    REMOVE_CUSTOM_SECTION(state, id) {
+        const section = state.customSections.find(s => s.id === id);
+        if (section) {
+            state.customSections = state.customSections.filter(s => s.id !== id);
+            state.customTools = state.customTools.filter(t => t.sectionTitle !== section.title);
+            state.sectionOrder = state.sectionOrder.filter(k => k !== 'cs:' + id);
+        }
+    },
+    SET_SECTION_ORDER(state, order) {
+        state.sectionOrder = [...order];
     }
 };

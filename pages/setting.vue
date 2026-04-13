@@ -2,6 +2,7 @@
     <div class="setting">
         <SetBackground />
         <SetLoginBackground />
+        <SetSakura />
 
         <nya-container title="自定义 CSS">
             <nya-input :value="$store.state.setting.css" fullwidth rows="5" type="textarea" autocomplete="off" placeholder=".navbar{display: none}" @change="handleChange('setting.css', $event.target.value)" />
@@ -32,6 +33,7 @@
 <script>
 import SetBackground from '../components/SetBackground';
 import SetLoginBackground from '../components/SetLoginBackground';
+import SetSakura from '../components/SetSakura';
 
 export default {
     name: 'Setting',
@@ -40,7 +42,8 @@ export default {
     },
     components: {
         SetBackground,
-        SetLoginBackground
+        SetLoginBackground,
+        SetSakura
     },
     data() {
         return {

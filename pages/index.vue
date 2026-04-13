@@ -39,141 +39,173 @@
         </nya-container>
 
         <template v-else v-show="!searchText">
-            <nya-container
-                v-for="(item, sectionIndex) in $store.state.tools"
-                v-show="!searchText && showSection(item)"
-                :key="sectionIndex"
-                :icon="item.icon"
-                :title="getSectionTitle(item.title)"
+            <draggable
+                v-model="sectionsList"
+                :disabled="!sortMode"
+                handle=".section-drag-handle"
+                :animation="200"
+                @end="onSectionDragEnd"
             >
-                <!-- 管理按钮 -->
-                <button
-                    class="section-manage-btn"
-                    @click="toggleManage(sectionIndex)"
+                <nya-container
+                    v-for="section in sectionsList"
+                    v-show="!searchText"
+                    :key="section._key"
+                    :icon="section._type === 'builtin' ? section._data.icon : 'folder-outline'"
+                    :title="section._type === 'builtin' ? getSectionTitle(section._data.title) : section._data.title"
                 >
-                    <i :class="'eva ' + (managingSection === sectionIndex ? 'eva-checkmark-outline' : 'eva-settings-2-outline')"></i>
-                    {{ managingSection === sectionIndex ? '完成' : '管理' }}
+                    <!-- 排序把手（排序模式） -->
+                    <div v-if="sortMode" class="section-drag-handle">
+                        <i class="eva eva-move-outline"></i>
+                        <span>拖动排序</span>
+                    </div>
+
+                    <!-- 管理按钮（非排序模式） -->
+                    <button
+                        v-if="!sortMode"
+                        class="section-manage-btn"
+                        @click="handleToggleManage(section)"
+                    >
+                        <i :class="'eva ' + (managingSection === section._key ? 'eva-checkmark-outline' : 'eva-settings-2-outline')"></i>
+                        {{ managingSection === section._key ? '完成' : '管理' }}
+                    </button>
+
+                    <!-- 工具卡片网格 + 管理面板（排序模式下隐藏） -->
+                    <template v-if="!sortMode">
+                        <!-- 工具卡片网格（始终显示） -->
+                        <div class="tool-card-grid">
+                            <!-- 内置工具卡片 -->
+                            <template v-if="section._type === 'builtin'">
+                                <nuxt-link
+                                    v-for="(tool, index2) in section._data.list"
+                                    v-show="!isHidden(tool.path)"
+                                    :key="'card-' + section._key + '-' + index2"
+                                    class="tool-card"
+                                    :target="$store.state.setting.inNewTab ? '_blank' : '_self'"
+                                    :title="tool.name"
+                                    :to="tool.path"
+                                >
+                                    <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
+                                        <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
+                                        <span v-else>{{ getToolIcon(tool) }}</span>
+                                    </div>
+                                    <span class="tool-card-name">{{ tool.name }}</span>
+                                    <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, true)">
+                                        <i class="eva eva-settings-2-outline"></i>
+                                    </button>
+                                </nuxt-link>
+                            </template>
+                            <!-- 自定义工具卡片 -->
+                            <a
+                                v-for="tool in customToolsForSection(section._data.title)"
+                                v-show="!tool.hidden"
+                                :key="'card-custom-' + tool.id"
+                                class="tool-card"
+                                :href="tool.url"
+                                :title="tool.name"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
+                                    <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
+                                    <span v-else>{{ getToolIcon(tool) }}</span>
+                                </div>
+                                <span class="tool-card-name">{{ tool.name }}</span>
+                                <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, false)">
+                                    <i class="eva eva-settings-2-outline"></i>
+                                </button>
+                            </a>
+                            <!-- + 添加工具卡片（仅管理模式） -->
+                            <div
+                                v-if="managingSection === section._key"
+                                class="tool-card tool-card-add"
+                                @click="openAddTool(section._data.title)"
+                            >
+                                <div class="tool-card-icon tool-card-add-icon">
+                                    <i class="eva eva-plus-outline"></i>
+                                </div>
+                                <span class="tool-card-name">添加工具</span>
+                            </div>
+                        </div>
+
+                        <!-- 管理面板（仅管理模式，显示在网格下方） -->
+                        <div v-if="managingSection === section._key" class="manage-panel">
+                            <!-- 改名 -->
+                            <div class="manage-rename">
+                                <i class="eva eva-edit-2-outline"></i>
+                                <input
+                                    v-model="renameSectionName"
+                                    class="manage-input manage-rename-input"
+                                    :placeholder="section._data.title"
+                                    maxlength="20"
+                                    @keyup.enter="section._type === 'builtin' ? saveRename(section._data.title) : saveRenameCustom(section._data)"
+                                />
+                                <button class="manage-rename-btn" @click="section._type === 'builtin' ? saveRename(section._data.title) : saveRenameCustom(section._data)">重命名</button>
+                                <button
+                                    v-if="section._type === 'builtin' && $store.state.sectionNames[section._data.title]"
+                                    class="manage-rename-reset"
+                                    @click="resetRename(section._data.title)"
+                                >还原</button>
+                            </div>
+
+                            <!-- 工具列表 -->
+                            <div class="manage-list">
+                                <!-- 内置工具（仅内置模块） -->
+                                <template v-if="section._type === 'builtin'">
+                                    <div
+                                        v-for="(tool, idx) in section._data.list"
+                                        :key="'m-' + section._key + '-' + idx"
+                                        class="manage-item"
+                                        :class="{ 'is-hidden': isHidden(tool.path) }"
+                                    >
+                                        <button class="manage-toggle" :class="{ 'is-off': isHidden(tool.path) }" @click="toggleVisibility(tool.path)">
+                                            <i :class="'eva ' + (isHidden(tool.path) ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
+                                        </button>
+                                        <span class="manage-name">{{ tool.name }}</span>
+                                        <span class="manage-tag">内置</span>
+                                    </div>
+                                </template>
+                                <!-- 自定义工具 -->
+                                <div
+                                    v-for="tool in customToolsForSection(section._data.title)"
+                                    :key="'mc-' + tool.id"
+                                    class="manage-item"
+                                    :class="{ 'is-hidden': tool.hidden }"
+                                >
+                                    <button class="manage-toggle" :class="{ 'is-off': tool.hidden }" @click="toggleCustomTool(tool.id)">
+                                        <i :class="'eva ' + (tool.hidden ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
+                                    </button>
+                                    <span class="manage-name">{{ tool.name }}</span>
+                                    <a class="manage-url" :href="tool.url" target="_blank" rel="noopener noreferrer">{{ tool.url }}</a>
+                                    <button class="manage-delete" @click="removeCustomTool(tool.id)">
+                                        <i class="eva eva-trash-2-outline"></i>
+                                        删除
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 删除整个模块（仅自定义模块） -->
+                            <div v-if="section._type === 'custom'" class="manage-section-delete-wrap">
+                                <button class="manage-section-delete" @click="deleteCustomSection(section._data)">
+                                    <i class="eva eva-trash-2-outline"></i>
+                                    删除整个模块
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </nya-container>
+            </draggable>
+
+            <!-- 底部操作：排序 + 新建模块 -->
+            <div v-show="!searchText" class="bottom-actions-bar">
+                <button class="sort-mode-btn" :class="{ active: sortMode }" @click="toggleSortMode">
+                    <i class="eva eva-swap-outline"></i>
+                    {{ sortMode ? '完成排序' : '排序模块' }}
                 </button>
-
-                <!-- 正常展示 -->
-                <template v-if="managingSection !== sectionIndex">
-                    <div class="tool-card-grid">
-                        <nuxt-link
-                            v-for="(tool, index2) in item.list"
-                            v-show="!isHidden(tool.path)"
-                            :key="'card-' + index2"
-                            class="tool-card"
-                            :target="$store.state.setting.inNewTab ? '_blank' : '_self'"
-                            :title="tool.name"
-                            :to="tool.path"
-                        >
-                            <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
-                                <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
-                                <span v-else>{{ getToolIcon(tool) }}</span>
-                            </div>
-                            <span class="tool-card-name">{{ tool.name }}</span>
-                            <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, true)">
-                                <i class="eva eva-settings-2-outline"></i>
-                            </button>
-                        </nuxt-link>
-                        <a
-                            v-for="tool in customToolsForSection(item.title)"
-                            v-show="!tool.hidden"
-                            :key="'card-custom-' + tool.id"
-                            class="tool-card"
-                            :href="tool.url"
-                            :title="tool.name"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
-                                <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
-                                <span v-else>{{ getToolIcon(tool) }}</span>
-                            </div>
-                            <span class="tool-card-name">{{ tool.name }}</span>
-                            <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, false)">
-                                <i class="eva eva-settings-2-outline"></i>
-                            </button>
-                        </a>
-                    </div>
-                </template>
-
-                <!-- 管理面板 -->
-                <div v-else class="manage-panel">
-                    <!-- 改名 -->
-                    <div class="manage-rename">
-                        <i class="eva eva-edit-2-outline"></i>
-                        <input
-                            v-model="renameSectionName"
-                            class="manage-input manage-rename-input"
-                            :placeholder="item.title"
-                            maxlength="20"
-                            @keyup.enter="saveRename(item.title)"
-                        />
-                        <button class="manage-rename-btn" @click="saveRename(item.title)">重命名</button>
-                        <button
-                            v-if="$store.state.sectionNames[item.title]"
-                            class="manage-rename-reset"
-                            @click="resetRename(item.title)"
-                        >还原</button>
-                    </div>
-
-                    <!-- 工具列表 -->
-                    <div class="manage-list">
-                        <div
-                            v-for="(tool, idx) in item.list"
-                            :key="'m-' + idx"
-                            class="manage-item"
-                            :class="{ 'is-hidden': isHidden(tool.path) }"
-                        >
-                            <button class="manage-toggle" :class="{ 'is-off': isHidden(tool.path) }" @click="toggleVisibility(tool.path)">
-                                <i :class="'eva ' + (isHidden(tool.path) ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
-                            </button>
-                            <span class="manage-name">{{ tool.name }}</span>
-                            <span class="manage-tag">内置</span>
-                        </div>
-                        <div
-                            v-for="tool in customToolsForSection(item.title)"
-                            :key="'mc-' + tool.id"
-                            class="manage-item"
-                            :class="{ 'is-hidden': tool.hidden }"
-                        >
-                            <button class="manage-toggle" :class="{ 'is-off': tool.hidden }" @click="toggleCustomTool(tool.id)">
-                                <i :class="'eva ' + (tool.hidden ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
-                            </button>
-                            <span class="manage-name">{{ tool.name }}</span>
-                            <a class="manage-url" :href="tool.url" target="_blank" rel="noopener noreferrer">{{ tool.url }}</a>
-                            <button class="manage-delete" @click="removeCustomTool(tool.id)">
-                                <i class="eva eva-trash-2-outline"></i>
-                                删除
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="manage-add">
-                        <div class="manage-add-title">
-                            <i class="eva eva-plus-circle-outline"></i>
-                            添加自定义功能
-                        </div>
-                        <div class="manage-add-row">
-                            <input
-                                v-model="newToolName"
-                                class="manage-input"
-                                placeholder="功能名称"
-                                maxlength="20"
-                            />
-                            <input
-                                v-model="newToolUrl"
-                                class="manage-input"
-                                placeholder="跳转 URL（https://...）"
-                            />
-                            <button class="manage-add-btn" @click="addCustomTool(item.title)">
-                                添加
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </nya-container>
+                <button class="add-section-btn" @click="openAddSection">
+                    <i class="eva eva-plus-circle-outline"></i>
+                    新建模块
+                </button>
+            </div>
         </template>
 
         <!-- 卡片编辑模态窗 -->
@@ -184,6 +216,18 @@
                         <span class="card-edit-title">编辑「{{ cardEdit.name }}」</span>
                         <button class="card-edit-close" @click="closeCardEdit"><i class="eva eva-close-outline"></i></button>
                     </div>
+
+                    <!-- 自定义工具名称和 URL -->
+                    <template v-if="!cardEdit.isBuiltin">
+                        <div class="card-edit-section">
+                            <label class="card-edit-label">工具名称</label>
+                            <input v-model="cardEditName" class="card-edit-input" placeholder="工具名称" maxlength="20" />
+                        </div>
+                        <div class="card-edit-section">
+                            <label class="card-edit-label">跳转 URL</label>
+                            <input v-model="cardEditUrl" class="card-edit-input" placeholder="https://..." />
+                        </div>
+                    </template>
 
                     <!-- 预览 -->
                     <div class="card-edit-preview-row">
@@ -261,6 +305,54 @@
                 </div>
             </div>
         </transition>
+
+        <!-- 添加工具弹窗 -->
+        <transition name="card-edit-fade">
+            <div v-if="addTool" class="card-edit-overlay" @click.self="closeAddTool">
+                <div class="card-edit-modal">
+                    <div class="card-edit-header">
+                        <span class="card-edit-title">添加自定义工具</span>
+                        <button class="card-edit-close" @click="closeAddTool"><i class="eva eva-close-outline"></i></button>
+                    </div>
+                    <div class="card-edit-section">
+                        <label class="card-edit-label">工具名称</label>
+                        <input v-model="addToolName" class="card-edit-input" placeholder="例：百度翻译" maxlength="20" autofocus @keyup.enter="submitAddTool" />
+                    </div>
+                    <div class="card-edit-section">
+                        <label class="card-edit-label">跳转 URL</label>
+                        <input v-model="addToolUrl" class="card-edit-input" placeholder="https://..." @keyup.enter="submitAddTool" />
+                    </div>
+                    <div class="card-edit-actions">
+                        <button class="card-edit-reset" @click="closeAddTool">取消</button>
+                        <div class="card-edit-actions-right">
+                            <button class="card-edit-save" @click="submitAddTool">添加</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- 新建模块弹窗 -->
+        <transition name="card-edit-fade">
+            <div v-if="addSection" class="card-edit-overlay" @click.self="closeAddSection">
+                <div class="card-edit-modal">
+                    <div class="card-edit-header">
+                        <span class="card-edit-title">新建模块</span>
+                        <button class="card-edit-close" @click="closeAddSection"><i class="eva eva-close-outline"></i></button>
+                    </div>
+                    <div class="card-edit-section">
+                        <label class="card-edit-label">模块名称</label>
+                        <input v-model="addSectionName" class="card-edit-input" placeholder="例：常用工具" maxlength="20" autofocus @keyup.enter="submitAddSection" />
+                    </div>
+                    <div class="card-edit-actions">
+                        <button class="card-edit-reset" @click="closeAddSection">取消</button>
+                        <div class="card-edit-actions-right">
+                            <button class="card-edit-save" @click="submitAddSection">创建</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </div>
 </template>
 
@@ -269,12 +361,14 @@ import Favorites from '~/components/Favorites';
 import Search from '~/components/Search';
 import isMobile from 'ismobilejs';
 import Welcome from '~/components/Welcome';
+import draggable from 'vuedraggable';
 export default {
     name: 'Home',
     components: {
         Favorites,
         Search,
-        Welcome
+        Welcome,
+        draggable
     },
     head() {
         return {
@@ -287,9 +381,9 @@ export default {
             searchText: '',
             isMobile,
             managingSection: null,
-            newToolName: '',
-            newToolUrl: '',
             renameSectionName: '',
+            sectionsList: [],
+            sortMode: false,
             // 卡片编辑模态窗
             cardEdit: null,
             cardEditIconType: 'emoji',
@@ -297,7 +391,16 @@ export default {
             cardEditAutoUrl: '',
             cardEditFetching: false,
             cardEditFetchError: '',
-            cardEditHidden: false
+            cardEditHidden: false,
+            cardEditName: '',
+            cardEditUrl: '',
+            // 添加工具弹窗
+            addTool: null,
+            addToolName: '',
+            addToolUrl: '',
+            // 新建模块弹窗
+            addSection: false,
+            addSectionName: ''
         };
     },
     computed: {
@@ -309,6 +412,13 @@ export default {
             return arr;
         }
     },
+    mounted() {
+        this.syncSectionsList();
+    },
+    watch: {
+        '$store.state.customSections'() { this.syncSectionsList(); },
+        '$store.state.sectionOrder'() { this.syncSectionsList(); }
+    },
     methods: {
         enterFirst(e) {
             if (this.$store.state.setting.inNewTab) {
@@ -317,14 +427,8 @@ export default {
                 this.$router.push(e.path);
             }
         },
-        showSection(item) {
-            return !(
-                item.list.filter(i => {
-                    return (
-                        this.$store.state.setting.hide.indexOf(i.path) !== -1
-                    );
-                }).length === item.list.length
-            );
+        showSection() {
+            return true;
         },
         showBtn(tool) {
             return this.$store.state.setting.hide.indexOf(tool.path) === -1;
@@ -351,42 +455,41 @@ export default {
         removeCustomTool(id) {
             this.$store.commit('REMOVE_CUSTOM_TOOL', id);
         },
-        addCustomTool(sectionTitle) {
-            const name = this.newToolName.trim();
-            const url = this.newToolUrl.trim();
-            if (!name) {
-                this.$noty.error('请输入功能名称');
-                return;
-            }
-            if (!url) {
-                this.$noty.error('请输入跳转 URL');
-                return;
-            }
-            if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
-                this.$noty.error('URL 格式不正确，请以 http:// 或 https:// 开头');
-                return;
-            }
-            this.$store.commit('ADD_CUSTOM_TOOL', {
-                id: Date.now(),
-                sectionTitle,
-                name,
-                url,
-                hidden: false
-            });
-            this.newToolName = '';
-            this.newToolUrl = '';
-            this.$noty.success('添加成功');
-        },
-        toggleManage(index) {
-            if (this.managingSection === index) {
+        handleToggleManage(section) {
+            const key = section._key;
+            if (this.managingSection === key) {
                 this.managingSection = null;
             } else {
-                this.managingSection = index;
-                const originalTitle = this.$store.state.tools[index].title;
-                this.renameSectionName = this.$store.state.sectionNames[originalTitle] || '';
+                this.managingSection = key;
+                this.renameSectionName = section._type === 'builtin'
+                    ? (this.$store.state.sectionNames[section._data.title] || '')
+                    : section._data.title;
             }
-            this.newToolName = '';
-            this.newToolUrl = '';
+        },
+        syncSectionsList() {
+            const builtIn = this.$store.state.tools.map(t => ({ _key: t.title, _type: 'builtin', _data: t }));
+            const custom = this.$store.state.customSections.map(s => ({ _key: 'cs:' + s.id, _type: 'custom', _data: s }));
+            const all = [...builtIn, ...custom];
+            const order = this.$store.state.sectionOrder || [];
+            if (!order.length) { this.sectionsList = all; return; }
+            const ordered = order.map(k => all.find(s => s._key === k)).filter(Boolean);
+            const unordered = all.filter(s => !order.includes(s._key));
+            this.sectionsList = [...ordered, ...unordered];
+        },
+        onSectionDragEnd() {
+            this.$store.commit('SET_SECTION_ORDER', this.sectionsList.map(s => s._key));
+        },
+        toggleSortMode() {
+            this.sortMode = !this.sortMode;
+            if (!this.sortMode) this.syncSectionsList();
+        },
+        toggleManage(index) {
+            const section = this.sectionsList.find((s, i) => s._type === 'builtin' && i === index);
+            if (section) this.handleToggleManage(section);
+        },
+        toggleManageCustom(sectionId) {
+            const section = this.sectionsList.find(s => s._type === 'custom' && s._data.id === sectionId);
+            if (section) this.handleToggleManage(section);
         },
         cardColor(name) {
             const palette = ['#249ffd','#7C3AED','#20c997','#fa5477','#f59f00','#ae3ec9','#1c7ed6','#2f9e44'];
@@ -421,6 +524,8 @@ export default {
             this.cardEditAutoUrl = (!isBuiltin && tool.url) ? tool.url : '';
             this.cardEditHidden = isBuiltin ? this.isHidden(tool.path) : !!tool.hidden;
             this.cardEditFetchError = '';
+            this.cardEditName = isBuiltin ? '' : tool.name;
+            this.cardEditUrl = isBuiltin ? '' : (tool.url || '');
         },
         closeCardEdit() {
             this.cardEdit = null;
@@ -439,6 +544,15 @@ export default {
             } else {
                 if (this.cardEditHidden !== !!tool.hidden) {
                     this.$store.commit('TOGGLE_CUSTOM_TOOL', tool.id);
+                }
+                const newName = this.cardEditName.trim();
+                const newUrl = this.cardEditUrl.trim();
+                if (newName || newUrl) {
+                    this.$store.commit('UPDATE_CUSTOM_TOOL', {
+                        id: tool.id,
+                        name: newName || tool.name,
+                        url: newUrl || tool.url
+                    });
                 }
             }
             this.closeCardEdit();
@@ -493,6 +607,64 @@ export default {
             this.$store.commit('RENAME_SECTION', { original, name: '' });
             this.renameSectionName = '';
             this.$noty.success('已还原');
+        },
+        saveRenameCustom(section) {
+            const name = this.renameSectionName.trim();
+            if (!name) { this.$noty.error('模块名称不能为空'); return; }
+            this.$store.commit('RENAME_CUSTOM_SECTION', { id: section.id, name });
+            this.$noty.success('已保存');
+        },
+        deleteCustomSection(section) {
+            if (!confirm(`确定要删除模块「${section.title}」及其所有工具吗？`)) return;
+            this.$store.commit('REMOVE_CUSTOM_SECTION', section.id);
+            if (this.managingSection === 'cs:' + section.id) {
+                this.managingSection = null;
+            }
+        },
+        openAddTool(sectionTitle) {
+            this.addTool = { sectionTitle };
+            this.addToolName = '';
+            this.addToolUrl = '';
+        },
+        closeAddTool() {
+            this.addTool = null;
+        },
+        submitAddTool() {
+            const name = this.addToolName.trim();
+            const url = this.addToolUrl.trim();
+            if (!name) { this.$noty.error('请输入功能名称'); return; }
+            if (!url) { this.$noty.error('请输入跳转 URL'); return; }
+            if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('/')) {
+                this.$noty.error('URL 格式不正确，请以 http:// 或 https:// 开头');
+                return;
+            }
+            this.$store.commit('ADD_CUSTOM_TOOL', {
+                id: Date.now(),
+                sectionTitle: this.addTool.sectionTitle,
+                name,
+                url,
+                hidden: false
+            });
+            this.closeAddTool();
+            this.$noty.success('添加成功');
+        },
+        openAddSection() {
+            this.addSection = true;
+            this.addSectionName = '';
+        },
+        closeAddSection() {
+            this.addSection = false;
+        },
+        submitAddSection() {
+            const name = this.addSectionName.trim();
+            if (!name) { this.$noty.error('请输入模块名称'); return; }
+            this.$store.commit('ADD_CUSTOM_SECTION', {
+                id: Date.now(),
+                title: name,
+                icon: 'folder-outline'
+            });
+            this.closeAddSection();
+            this.$noty.success('模块创建成功');
         }
     }
 };
@@ -1292,6 +1464,132 @@ export default {
         &:hover {
             opacity: 0.85;
         }
+    }
+
+    /* + 添加工具卡片 */
+    .tool-card-add {
+        border: 2px dashed rgba(36, 159, 253, 0.4);
+        background: none !important;
+        box-shadow: none !important;
+        cursor: pointer;
+        opacity: 0.7;
+        justify-content: flex-start;
+        transition: opacity 0.2s, border-color 0.2s, transform 0.2s;
+        &:hover {
+            opacity: 1;
+            border-color: rgba(36, 159, 253, 0.8);
+            transform: none;
+            &::before { opacity: 0 !important; }
+        }
+    }
+
+    .tool-card-add-icon {
+        background: rgba(36, 159, 253, 0.12) !important;
+        box-shadow: none !important;
+        i { font-size: 18px; color: #249ffd; }
+    }
+
+    /* 排序把手 */
+    .section-drag-handle {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px 3px 7px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #249ffd;
+        border: 1px solid #249ffd;
+        border-radius: 5px;
+        cursor: grab;
+        user-select: none;
+        z-index: 1;
+        transition: background-color 0.15s;
+        i { font-size: 14px; }
+        &:active { cursor: grabbing; }
+        &:hover { background-color: rgba(36, 159, 253, 0.08); }
+    }
+
+    /* 底部操作栏 */
+    .bottom-actions-bar {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px 0 20px;
+    }
+
+    .sort-mode-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #9aa5b4;
+        background: none;
+        border: 1px dashed var(--border-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+        i { font-size: 16px; }
+        &:hover {
+            color: #249ffd;
+            border-color: rgba(36, 159, 253, 0.6);
+        }
+        &.active {
+            border-style: solid;
+            color: #249ffd;
+            border-color: #249ffd;
+            background-color: rgba(36, 159, 253, 0.06);
+        }
+    }
+
+    /* 新建模块按钮 */
+    .add-section-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #249ffd;
+        background: none;
+        border: 1px dashed rgba(36, 159, 253, 0.5);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s, border-color 0.2s;
+        i { font-size: 16px; }
+        &:hover {
+            background-color: rgba(36, 159, 253, 0.06);
+            border-color: rgba(36, 159, 253, 0.8);
+        }
+    }
+
+    /* 删除整个模块 */
+    .manage-section-delete-wrap {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 14px;
+        margin-top: 8px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .manage-section-delete {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 14px;
+        font-size: 13px;
+        color: #f93a6d;
+        background: none;
+        border: 1px solid #f0c0cc;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.15s;
+        i { font-size: 14px; }
+        &:hover { background-color: rgba(249, 58, 109, 0.08); }
     }
 }
 </style>

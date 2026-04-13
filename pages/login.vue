@@ -63,6 +63,8 @@
 </template>
 
 <script>
+import { COLOR_PRESETS } from '~/components/SetSakura';
+
 const REMEMBER_KEY = 'miku_remember_until';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 const ATTEMPTS_KEY = 'miku_login_attempts';
@@ -113,7 +115,8 @@ export default {
             loading: false,
             remember: false,
             lockRemaining: 0,
-            attemptsLeft: MAX_ATTEMPTS
+            attemptsLeft: MAX_ATTEMPTS,
+            _sakura: null
         };
     },
     computed: {
@@ -130,6 +133,9 @@ export default {
             if (setting.type === 'custom') return setting.customUrl;
             if (setting.type === 'upload') return setting.upload.url;
             return '';
+        },
+        sakuraCfg() {
+            return this.$store.state.setting.sakura || {};
         }
     },
     async mounted() {
@@ -142,11 +148,73 @@ export default {
         } catch (e) { /* fallback 到 localStorage 存储的密码 */ }
         this._refreshLock();
         this._timer = setInterval(() => this._refreshLock(), 1000);
+
+        // 等待 onNuxtReady 后（localStorage 数据已加载），再初始化 sakura
+        if (process.browser) {
+            window.onNuxtReady(() => {
+                if (this.sakuraCfg.enabled) {
+                    this._initSakura();
+                }
+            });
+        }
+    },
+    watch: {
+        'sakuraCfg.enabled'(val) {
+            if (val) this._initSakura();
+            else this._destroySakura();
+        },
+        'sakuraCfg.fallSpeed'() { this._restartSakura(); },
+        'sakuraCfg.maxSize'() { this._restartSakura(); },
+        'sakuraCfg.minSize'() { this._restartSakura(); },
+        'sakuraCfg.delay'() { this._restartSakura(); },
+        'sakuraCfg.colorPreset'() { this._restartSakura(); }
     },
     beforeDestroy() {
         clearInterval(this._timer);
+        this._destroySakura();
     },
     methods: {
+        _loadSakuraAssets() {
+            return new Promise(resolve => {
+                if (window.Sakura) { resolve(); return; }
+                // load CSS
+                if (!document.querySelector('link[href="/css/sakura.min.css"]')) {
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = '/css/sakura.min.css';
+                    document.head.appendChild(l);
+                }
+                // load JS
+                const s = document.createElement('script');
+                s.src = '/js/sakura.min.js';
+                s.onload = resolve;
+                s.onerror = resolve;
+                document.head.appendChild(s);
+            });
+        },
+        async _initSakura() {
+            await this._loadSakuraAssets();
+            if (!window.Sakura) return;
+            this._destroySakura();
+            const cfg = this.sakuraCfg;
+            const preset = COLOR_PRESETS[cfg.colorPreset] || COLOR_PRESETS[0];
+            this._sakura = new window.Sakura('.login-page', {
+                fallSpeed: cfg.fallSpeed || 1,
+                maxSize: cfg.maxSize || 14,
+                minSize: cfg.minSize || 10,
+                delay: cfg.delay || 300,
+                colors: preset.colors
+            });
+        },
+        _destroySakura() {
+            if (this._sakura) {
+                try { this._sakura.stop(false); } catch (e) {}
+                this._sakura = null;
+            }
+        },
+        _restartSakura() {
+            if (this.sakuraCfg.enabled) this._initSakura();
+        },
         _refreshLock() {
             const d = getAttempts();
             if (d.lockUntil && Date.now() < d.lockUntil) {
@@ -205,6 +273,26 @@ export default {
 </script>
 
 <style lang="scss">
+/* 覆盖 sakura 默认的 fall 动画：延伸到 110% 并完全淡出，
+   确保花瓣离开视口后再被移除，避免停在底部继续左右漂移 */
+@keyframes fall {
+    0%   { opacity: 0.9; top: 0; }
+    75%  { opacity: 0.8; }
+    100% { opacity: 0;   top: 100%; }
+}
+@-webkit-keyframes fall {
+    0%   { opacity: 0.9; top: 0; }
+    75%  { opacity: 0.8; }
+    100% { opacity: 0;   top: 100%; }
+}
+
+/* sakura 花瓣置于最顶层 */
+.sakura {
+    animation-fill-mode: forwards !important;
+    -webkit-animation-fill-mode: forwards !important;
+    z-index: 9999;
+}
+
 .login-page {
     min-height: 100vh;
     display: flex;
@@ -213,6 +301,7 @@ export default {
     background-color: #f4f8fb;
     transition: background-color 0.3s;
     position: relative;
+    overflow: hidden;
 
     &.dark {
         background-color: #1a1d23;
@@ -331,6 +420,11 @@ export default {
     color: #249ffd;
     margin: 0;
     letter-spacing: 1px;
+}
+
+.login-body {
+    position: relative;
+    z-index: 1;
 }
 
 .login-lock-icon {
