@@ -56,7 +56,7 @@
             <div v-if="$store.state.setting.bg.layer" class="bg-layer"></div>
             <Navbar />
             <nuxt class="view" />
-            <Vfooter v-show="$route.path === '/'" />
+            <Vfooter v-show="$route.path === '/' || $route.path === '/setting'" />
         </main>
         <!-- 自定义CSS -->
         <style v-if="$store.state.setting.css">

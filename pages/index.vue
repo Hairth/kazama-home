@@ -7,7 +7,7 @@
                     v-for="(tool, index) in data.data"
                     v-show="showBtn(tool)"
                     :key="index"
-                    :target="$store.state.setting.inNewTab ? '_blank' : '_self'"
+                    :target="($store.state.setting.inNewTab && tool.path !== '/setting') ? '_blank' : '_self'"
                     :to="tool.path"
                     class="nya-btn"
                 >
@@ -80,7 +80,7 @@
                                     v-show="!isHidden(tool.path)"
                                     :key="'card-' + section._key + '-' + index2"
                                     class="tool-card"
-                                    :target="$store.state.setting.inNewTab ? '_blank' : '_self'"
+                                    :target="($store.state.setting.inNewTab && tool.path !== '/setting') ? '_blank' : '_self'"
                                     :title="tool.name"
                                     :to="tool.path"
                                 >
@@ -353,6 +353,28 @@
                 </div>
             </div>
         </transition>
+        <!-- 删除模块确认弹窗 -->
+        <transition name="card-edit-fade">
+            <div v-if="deletingSectionConfirm" class="card-edit-overlay" @click.self="deletingSectionConfirm = null">
+                <div class="card-edit-modal">
+                    <div class="card-edit-header">
+                        <span class="card-edit-title">删除模块</span>
+                        <button class="card-edit-close" @click="deletingSectionConfirm = null"><i class="eva eva-close-outline"></i></button>
+                    </div>
+                    <div class="card-edit-section">
+                        确定要删除模块「<strong>{{ deletingSectionConfirm.title }}</strong>」及其所有工具吗？此操作无法撤销。
+                    </div>
+                    <div class="card-edit-actions">
+                        <button class="card-edit-reset" @click="deletingSectionConfirm = null">取消</button>
+                        <div class="card-edit-actions-right">
+                            <button class="card-edit-delete" @click="confirmDeleteSection">
+                                <i class="eva eva-trash-2-outline"></i>确认删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </div>
 </template>
 
@@ -400,7 +422,9 @@ export default {
             addToolUrl: '',
             // 新建模块弹窗
             addSection: false,
-            addSectionName: ''
+            addSectionName: '',
+            // 删除模块确认弹窗
+            deletingSectionConfirm: null
         };
     },
     computed: {
@@ -421,7 +445,7 @@ export default {
     },
     methods: {
         enterFirst(e) {
-            if (this.$store.state.setting.inNewTab) {
+            if (this.$store.state.setting.inNewTab && e.path !== '/setting') {
                 window.open(e.path);
             } else {
                 this.$router.push(e.path);
@@ -615,11 +639,15 @@ export default {
             this.$noty.success('已保存');
         },
         deleteCustomSection(section) {
-            if (!confirm(`确定要删除模块「${section.title}」及其所有工具吗？`)) return;
+            this.deletingSectionConfirm = section;
+        },
+        confirmDeleteSection() {
+            const section = this.deletingSectionConfirm;
             this.$store.commit('REMOVE_CUSTOM_SECTION', section.id);
             if (this.managingSection === 'cs:' + section.id) {
                 this.managingSection = null;
             }
+            this.deletingSectionConfirm = null;
         },
         openAddTool(sectionTitle) {
             this.addTool = { sectionTitle };
@@ -973,17 +1001,23 @@ export default {
 
     .manage-list {
         margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
     }
 
     .manage-item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        padding: 7px 10px;
-        border-radius: 6px;
-        transition: background-color 0.15s;
-        gap: 10px;
+        padding: 4px 10px 4px 6px;
+        border-radius: 20px;
+        border: 1px solid #e5e7eb;
+        background-color: var(--bg, #fff);
+        transition: background-color 0.15s, border-color 0.15s;
+        gap: 6px;
         &:hover {
             background-color: rgba(0, 0, 0, 0.03);
+            border-color: #d1d5db;
         }
         &.is-hidden {
             opacity: 0.4;
@@ -1358,10 +1392,14 @@ export default {
     }
 
     .manage-name {
-        font-size: 14px;
+        font-size: 13px;
         color: var(--t1);
         flex: 0 0 auto;
-        min-width: 80px;
+        white-space: nowrap;
+    }
+
+    .manage-url {
+        display: none;
     }
 
     .manage-tag {
