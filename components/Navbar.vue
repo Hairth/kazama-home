@@ -8,7 +8,7 @@
                 </nuxt-link>
             </h1>
             <Panel />
-            <button class="logout-btn" title="退出登录" @click="handleLogout">
+            <button v-if="$route.path === '/'" class="logout-btn" title="退出登录" @click="handleLogout">
                 <i data-eva="log-out-outline" data-eva-width="16" data-eva-height="16"></i>
                 <span>退出登录</span>
             </button>
@@ -97,19 +97,17 @@ export default {
     .logout-btn {
         position: absolute;
         right: 0;
-        top: 50%;
-        transform: translateY(-50%);
+        bottom: 8px;
         background: none;
-        border: 1px solid var(--border-color);
+        border: 1px solid #f93a6d;
         border-radius: 6px;
-        padding: 7px 14px;
+        padding: 5px 12px;
         cursor: pointer;
         color: #f93a6d;
-        border-color: #f93a6d;
         display: flex;
         align-items: center;
         gap: 6px;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: normal;
         transition: color 0.2s, border-color 0.2s, background-color 0.2s;
         white-space: nowrap;
