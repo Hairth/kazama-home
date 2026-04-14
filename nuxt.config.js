@@ -232,6 +232,10 @@ module.exports = {
     //     offlinePage: '/offline.html',
     //     offlineAssets: ['/offline.html']
     // },
+    pageTransition: {
+        name: 'page',
+        mode: 'out-in'
+    },
     router: {
         prefetchLinks: false,
         middleware: ['getCurrentTool', 'baidupush', 'auth']

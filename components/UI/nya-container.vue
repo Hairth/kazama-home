@@ -37,8 +37,8 @@ export default {
     box-shadow: 8px 14px 38px rgba(39, 44, 49, 0.06),
         1px 3px 8px rgba(39, 44, 49, 0.03);
     background-color: #fff;
-    border: none;
-    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
     &.pt {
         padding-top: 35px;
     }
@@ -64,8 +64,8 @@ export default {
         font-size: 0;
         background-color: var(--theme);
         color: #fff;
-        box-shadow: 0 8px 10px rgba(36, 159, 253, 0.30196);
-        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(36, 159, 253, 0.35);
+        border-radius: 10px;
         i {
             margin-right: 5px;
             font-size: 20px;
@@ -90,6 +90,15 @@ export default {
 
     .nya-list {
         margin: 0;
+    }
+}
+
+body.dark .nya-container {
+    background-color: #1e293b;
+    border-color: rgba(255,255,255,0.06);
+    box-shadow: 8px 14px 38px rgba(0, 0, 0, 0.15), 1px 3px 8px rgba(0, 0, 0, 0.08);
+    &.transparent {
+        background-color: rgba(30, 41, 59, 0.7);
     }
 }
 </style>

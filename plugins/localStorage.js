@@ -69,6 +69,14 @@ export default ({ store }) => {
         await loadFromCloud(store);
         cloudLoading = false;
 
+        // 清除残留测试背景（bg-preview.png）
+        const bgState = store.state.setting && store.state.setting.bg;
+        if (bgState && bgState.upload && bgState.upload.url === '/bg-preview.png') {
+            store.commit('SET_STORE', { key: 'setting.bg.type', value: 'none' });
+            store.commit('SET_STORE', { key: 'setting.bg.upload', value: { url: '', deleteUrl: '' } });
+        }
+
+
         // 监听 store 变化，自动同步到云端
         store.subscribe(() => {
             saveToCloud(store);

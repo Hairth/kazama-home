@@ -144,7 +144,9 @@ export default {
         background-color: transparent;
         color: var(--t1);
         outline: none;
-        transition: border-color 0.2s ease;
+        transition-property: border-color, box-shadow;
+        transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+        transition-duration: 0.2s;
         &[disabled='disabled'] {
             opacity: 0.8;
             cursor: no-drop;
@@ -154,6 +156,7 @@ export default {
         }
         &:focus {
             border-color: var(--theme);
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.12);
         }
     }
 

@@ -12,10 +12,7 @@
                 <span></span>
             </li>
         </ul>
-        <div class="main" :title="collected ? '收藏本工具' : '取消收藏'" @click="collect">
-            <i v-if="collected" class="eva eva-star"></i>
-            <i v-else class="eva eva-star-outline"></i>
-        </div>
+
         <client-only>
             <modal class="code" name="code" height="auto" width="500" reset adaptive>
                 <div class="title">

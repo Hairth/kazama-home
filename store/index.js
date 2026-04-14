@@ -42,7 +42,7 @@ export const state = () => ({
             opacity: 50
         },
         sakura: {
-            enabled: false,
+            enabled: true,
             fallSpeed: 1,
             maxSize: 14,
             minSize: 10,

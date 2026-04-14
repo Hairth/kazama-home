@@ -44,6 +44,8 @@
                         <span>7日間ログイン状態を保持する</span>
                     </label>
 
+                    <div ref="turnstileEl" class="turnstile-wrap"></div>
+
                     <p v-if="isLocked" class="login-error login-locked">
                         <i data-eva="lock-outline" data-eva-width="14" data-eva-height="14"></i>
                         {{ lockText }}
@@ -64,6 +66,7 @@
 
 <script>
 import { COLOR_PRESETS } from '~/components/SetSakura';
+import { animate } from '~/assets/js/anime.esm.min.js';
 
 const REMEMBER_KEY = 'miku_remember_until';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -116,6 +119,7 @@ export default {
             remember: false,
             lockRemaining: 0,
             attemptsLeft: MAX_ATTEMPTS,
+            turnstileToken: '',
             _sakura: null
         };
     },
@@ -139,6 +143,14 @@ export default {
         }
     },
     async mounted() {
+        animate(this.$el.querySelector('.login-card'), {
+            opacity: [0, 1],
+            translateY: [30, 0],
+            duration: 650,
+            ease: 'outCubic'
+        });
+
+
         try {
             const res = await fetch('/api/auth-config');
             const data = await res.json();
@@ -157,6 +169,18 @@ export default {
                 }
             });
         }
+
+        // 初始化 Turnstile
+        this._loadTurnstile().then(() => {
+            if (!this.$refs.turnstileEl || !window.turnstile) return;
+            window.turnstile.render(this.$refs.turnstileEl, {
+                sitekey: '0x4AAAAAAC80OiNZR2cIzP1t',
+                theme: this.$store.state.dark ? 'dark' : 'light',
+                callback: (token) => { this.turnstileToken = token; },
+                'expired-callback': () => { this.turnstileToken = ''; },
+                'error-callback': () => { this.turnstileToken = ''; }
+            });
+        });
     },
     watch: {
         'sakuraCfg.enabled'(val) {
@@ -167,13 +191,44 @@ export default {
         'sakuraCfg.maxSize'() { this._restartSakura(); },
         'sakuraCfg.minSize'() { this._restartSakura(); },
         'sakuraCfg.delay'() { this._restartSakura(); },
-        'sakuraCfg.colorPreset'() { this._restartSakura(); }
+        'sakuraCfg.colorPreset'() { this._restartSakura(); },
+        loading(val) {
+            const btn = this.$el && this.$el.querySelector('.login-btn');
+            if (!btn) return;
+            if (val) {
+                this._btnAnim = animate(btn, {
+                    scale: [1, 0.96, 1],
+                    duration: 850,
+                    loop: true,
+                    ease: 'inOutSine'
+                });
+            } else {
+                if (this._btnAnim) { this._btnAnim.pause(); this._btnAnim = null; }
+                animate(btn, { scale: 1, duration: 200, ease: 'outBack' });
+            }
+        }
     },
     beforeDestroy() {
         clearInterval(this._timer);
         this._destroySakura();
+        if (this._btnAnim) { this._btnAnim.pause(); this._btnAnim = null; }
+        if (window.turnstile && this.$refs.turnstileEl) {
+            try { window.turnstile.remove(this.$refs.turnstileEl); } catch (e) {}
+        }
     },
     methods: {
+        _loadTurnstile() {
+            return new Promise(resolve => {
+                if (window.turnstile) { resolve(); return; }
+                const s = document.createElement('script');
+                s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+                s.async = true;
+                s.defer = true;
+                s.onload = resolve;
+                s.onerror = resolve;
+                document.head.appendChild(s);
+            });
+        },
         _loadSakuraAssets() {
             return new Promise(resolve => {
                 if (window.Sakura) { resolve(); return; }
@@ -231,9 +286,29 @@ export default {
                 return;
             }
             if (this.isLocked) return;
+            if (!this.turnstileToken) {
+                this.error = '人機確認を完了してください';
+                return;
+            }
 
             this.loading = true;
             try {
+                // 验证 Turnstile token
+                const verifyRes = await fetch('/api/verify-turnstile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: this.turnstileToken })
+                });
+                const verifyData = await verifyRes.json();
+                if (!verifyData.success) {
+                    this.error = '人機確認に失敗しました、もう一度お試しください';
+                    this.turnstileToken = '';
+                    if (window.turnstile && this.$refs.turnstileEl) {
+                        window.turnstile.reset(this.$refs.turnstileEl);
+                    }
+                    this.loading = false;
+                    return;
+                }
                 const inputHash = await sha256(this.password);
 
                 // 迁移：首次使用时将明文密码升级为哈希
@@ -478,6 +553,12 @@ export default {
         color: #6b7280;
         user-select: none;
     }
+}
+
+.turnstile-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
 }
 
 .login-error {

@@ -96,6 +96,8 @@ function buildWeatherData(data, userLocation = '') {
     return { location: userLocation || '未知位置', condition, temperature, tempRange, airQuality, humidity, time: timeString, fullDateTime, icon };
 }
 
+import { animate, stagger } from '~/assets/js/anime.esm.min.js';
+
 export default {
     name: 'Weather',
     data() {
@@ -117,9 +119,39 @@ export default {
         this._visibilityHandler = null;
         this._clockTimer = null;
     },
+    watch: {
+        isLoading(val) {
+            if (!val) {
+                if (this._dotsAnim) { this._dotsAnim.pause(); this._dotsAnim = null; }
+                this.$nextTick(() => {
+                    animate(this.$el.querySelectorAll('.weather-icon, .weather-title, .weather-main, .weather-detail, .weather-clock-time, .weather-clock-date'), {
+                        opacity: [0, 1],
+                        translateY: [8, 0],
+                        duration: 380,
+                        delay: stagger(55),
+                        ease: 'outCubic'
+                    });
+                });
+            }
+        }
+    },
     mounted() {
         this._tickClock();
         this._clockTimer = setInterval(() => this._tickClock(), 1000);
+
+        // 三个点 loading 动画
+        this.$nextTick(() => {
+            const dots = this.$el.querySelectorAll('.dot');
+            if (dots.length) {
+                this._dotsAnim = animate(dots, {
+                    translateY: [0, -5, 0],
+                    duration: 600,
+                    delay: stagger(130),
+                    loop: true,
+                    ease: 'inOutSine'
+                });
+            }
+        });
 
         const init = () => this._fetchWeather();
         if ('requestIdleCallback' in window) {
@@ -137,6 +169,7 @@ export default {
         document.addEventListener('visibilitychange', this._visibilityHandler, { passive: true });
     },
     beforeDestroy() {
+        if (this._dotsAnim) { this._dotsAnim.pause(); this._dotsAnim = null; }
         if (this._visibilityHandler) {
             document.removeEventListener('visibilitychange', this._visibilityHandler);
         }
@@ -324,9 +357,6 @@ export default {
     .dot {
         display: inline-block;
         font-weight: bold;
-        animation: weatherDotBounce 1s infinite;
-        &.dot-2 { animation-delay: 0.15s; }
-        &.dot-3 { animation-delay: 0.3s; }
     }
 }
 
@@ -366,8 +396,4 @@ export default {
     white-space: nowrap;
 }
 
-@keyframes weatherDotBounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-4px); }
-}
 </style>

@@ -299,6 +299,7 @@
 
                     <!-- 图标方式 Tab -->
                     <div class="card-edit-tabs">
+                        <span class="tab-indicator" ref="tabIndicator"></span>
                         <button :class="['card-edit-tab', { active: cardEditIconType === 'emoji' }]" @click="cardEditIconType = 'emoji'">
                             <i class="eva eva-smiling-face-outline"></i>自定义图标
                         </button>
@@ -440,6 +441,7 @@ import Search from '~/components/Search';
 import isMobile from 'ismobilejs';
 import Welcome from '~/components/Welcome';
 import draggable from 'vuedraggable';
+import { animate, stagger, utils } from '~/assets/js/anime.esm.min.js';
 export default {
     name: 'Home',
     components: {
@@ -521,12 +523,128 @@ export default {
     },
     mounted() {
         this.syncSectionsList();
+        this.$nextTick(() => {
+            // 工具卡片入场 stagger 动画
+            const cards = this.$el.querySelectorAll('.tool-card:not(.tool-card-add)');
+            if (cards.length) {
+                animate(cards, {
+                    opacity: [0, 1],
+                    translateY: [16, 0],
+                    scale: [0.95, 1],
+                    duration: 420,
+                    delay: stagger(15),
+                    ease: 'outCubic'
+                });
+            }
+        });
+
+        // 工具卡片 hover 动画（事件委托）
+        const _glowFallback = ['#249ffd','#f472b6','#a78bfa','#34d399','#fb923c','#60a5fa','#f59f00','#20c997'];
+        this._onCardOver = (e) => {
+            const card = e.target.closest('.tool-card');
+            if (!card || card.classList.contains('tool-card-add')) return;
+            if (card.contains(e.relatedTarget)) return;
+            // 读图标颜色，写入 --glow-color
+            const icon = card.querySelector('.tool-card-icon');
+            if (icon) {
+                const bg = icon.style.background || icon.style.backgroundColor;
+                const color = (bg && !bg.includes('var('))
+                    ? bg
+                    : _glowFallback[Math.floor(Math.random() * _glowFallback.length)];
+                card.style.setProperty('--glow-color', color);
+                animate(icon, { scale: 1.18, rotate: 8, duration: 320, ease: 'outBack' });
+            }
+            animate(card, { translateY: -6, duration: 180, ease: 'outQuad' });
+        };
+        this._onCardOut = (e) => {
+            const card = e.target.closest('.tool-card');
+            if (!card || card.classList.contains('tool-card-add')) return;
+            if (card.contains(e.relatedTarget)) return;
+            animate(card, { translateY: 0, rotateX: 0, rotateY: 0, duration: 500, ease: 'outBack' });
+            const icon = card.querySelector('.tool-card-icon');
+            if (icon) animate(icon, { scale: 1, rotate: 0, duration: 380, ease: 'outBack' });
+        };
+        // 3D 倾斜（mousemove 委托）
+        this._onCardMove = (e) => {
+            const card = e.target.closest('.tool-card');
+            if (!card || card.classList.contains('tool-card-add')) return;
+            const rect = card.getBoundingClientRect();
+            const rx = ((e.clientY - rect.top) / rect.height - 0.5) * -17;
+            const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 17;
+            utils.set(card, { rotateX: rx, rotateY: ry });
+        };
+        this.$el.addEventListener('mouseover', this._onCardOver);
+        this.$el.addEventListener('mouseout', this._onCardOut);
+        this.$el.addEventListener('mousemove', this._onCardMove);
+
+        // 底部操作按钮 hover 弹跳
+        this._onBtnOver = (e) => {
+            const btn = e.target.closest('.sort-mode-btn, .add-section-btn');
+            if (!btn || btn.contains(e.relatedTarget)) return;
+            animate(btn, { scale: 1.06, duration: 180, ease: 'outBack' });
+        };
+        this._onBtnOut = (e) => {
+            const btn = e.target.closest('.sort-mode-btn, .add-section-btn');
+            if (!btn || btn.contains(e.relatedTarget)) return;
+            animate(btn, { scale: 1, duration: 260, ease: 'outCubic' });
+        };
+        this.$el.addEventListener('mouseover', this._onBtnOver);
+        this.$el.addEventListener('mouseout', this._onBtnOut);
+    },
+    beforeDestroy() {
+        if (this._onCardOver) {
+            this.$el.removeEventListener('mouseover', this._onCardOver);
+            this.$el.removeEventListener('mouseout', this._onCardOut);
+            this.$el.removeEventListener('mousemove', this._onCardMove);
+        }
+        if (this._onBtnOver) {
+            this.$el.removeEventListener('mouseover', this._onBtnOver);
+            this.$el.removeEventListener('mouseout', this._onBtnOut);
+        }
     },
     watch: {
         '$store.state.customSections'() { this.syncSectionsList(); },
-        '$store.state.sectionOrder'() { this.syncSectionsList(); }
+        '$store.state.sectionOrder'() { this.syncSectionsList(); },
+        cardEditIconType() {
+            this.$nextTick(() => this._positionTabIndicator(true));
+        },
+        cardEdit(val) {
+            if (val) {
+                this.$nextTick(() => this._positionTabIndicator(false));
+            }
+        },
+        managingSection(val) {
+            if (val) {
+                this.$nextTick(() => {
+                    const panel = this.$el.querySelector('.manage-panel');
+                    if (!panel) return;
+                    animate(panel, {
+                        opacity: [0, 1],
+                        translateY: [-12, 0],
+                        scale: [0.97, 1],
+                        duration: 340,
+                        ease: 'outCubic'
+                    });
+                });
+            }
+        }
     },
     methods: {
+        _positionTabIndicator(animated) {
+            const indicator = this.$refs.tabIndicator;
+            if (!indicator) return;
+            const activeTab = indicator.parentElement.querySelector('.card-edit-tab.active');
+            if (!activeTab) return;
+            const containerRect = indicator.parentElement.getBoundingClientRect();
+            const tabRect = activeTab.getBoundingClientRect();
+            const left = tabRect.left - containerRect.left;
+            const width = tabRect.width;
+            if (animated) {
+                animate(indicator, { left, width, duration: 280, ease: 'outCubic' });
+            } else {
+                utils.set(indicator, { left, width });
+            }
+        },
         enterFirst(e) {
             if (this.$store.state.setting.inNewTab && e.path !== '/setting') {
                 window.open(e.path);
@@ -897,6 +1015,7 @@ export default {
         gap: 10px;
         width: 100%;
         --card-icon-bg: #f0f4f8;
+        perspective: 720px;
         @media (max-width: 700px) {
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 8px;
@@ -920,8 +1039,9 @@ export default {
         text-decoration: none;
         color: var(--t1);
         cursor: pointer;
-        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         overflow: visible;
+        will-change: transform;
+        transform-style: preserve-3d;
 
         &::before {
             content: '';
@@ -930,19 +1050,17 @@ export default {
             border-radius: 13px;
             opacity: 0;
             box-shadow:
-                0 0 0 1px #7C3AED,
-                0 0 8px 2px rgba(124, 58, 237, 0.65),
-                0 0 14px 4px rgba(79, 70, 229, 0.4),
-                0 0 20px 6px rgba(0, 200, 200, 0.2);
+                0 0 0 1px var(--glow-color, #7C3AED),
+                0 0 8px 2px color-mix(in oklab, var(--glow-color, #7C3AED) 65%, transparent),
+                0 0 14px 4px color-mix(in oklab, var(--glow-color, #7C3AED) 40%, transparent),
+                0 0 20px 6px color-mix(in oklab, var(--glow-color, #7C3AED) 20%, transparent);
             transition: opacity 0.3s ease;
             pointer-events: none;
         }
 
         &:hover {
-            transform: translateY(-5px);
             text-decoration: none;
             &::before { opacity: 1; }
-            .tool-card-icon { transform: scale(1.12); }
             .tool-card-edit-btn { opacity: 1; }
         }
 
@@ -958,10 +1076,10 @@ export default {
         box-shadow: 0 3px 10px rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.12);
         &::before {
             box-shadow:
-                0 0 0 1px #7C3AED,
-                0 0 10px 3px rgba(124, 58, 237, 0.85),
-                0 0 18px 5px rgba(79, 70, 229, 0.6),
-                0 0 26px 8px rgba(0, 255, 255, 0.3);
+                0 0 0 1px var(--glow-color, #7C3AED),
+                0 0 10px 3px color-mix(in oklab, var(--glow-color, #7C3AED) 85%, transparent),
+                0 0 18px 5px color-mix(in oklab, var(--glow-color, #7C3AED) 60%, transparent),
+                0 0 26px 8px color-mix(in oklab, var(--glow-color, #7C3AED) 30%, transparent);
         }
     }
 
@@ -977,7 +1095,6 @@ export default {
         color: #fff;
         flex-shrink: 0;
         box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-        transition: transform 0.3s ease;
         overflow: hidden;
     }
 
@@ -1024,8 +1141,8 @@ export default {
         top: 8px;
         right: 12px;
         background: none;
-        border: 1px solid #249ffd;
-        border-radius: 5px;
+        border: 1px solid rgba(36, 159, 253, 0.6);
+        border-radius: 6px;
         padding: 3px 10px 3px 7px;
         font-size: 12px;
         color: #249ffd;
@@ -1033,14 +1150,16 @@ export default {
         display: flex;
         align-items: center;
         gap: 4px;
-        transition: background-color 0.2s;
+        transition: color 0.2s, background-color 0.2s, border-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         z-index: 1;
         font-weight: 600;
         i {
             font-size: 14px;
         }
         &:hover {
-            background-color: rgba(36, 159, 253, 0.1);
+            background-color: rgba(36, 159, 253, 0.08);
+            border-color: #249ffd;
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.12);
         }
     }
 
@@ -1076,12 +1195,15 @@ export default {
         color: #fff;
         background-color: var(--theme);
         border: none;
-        border-radius: 5px;
+        border-radius: 6px;
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
-        transition: opacity 0.2s;
-        &:hover { opacity: 0.85; }
+        transition: opacity 0.2s cubic-bezier(0,0,0.2,1), box-shadow 0.2s cubic-bezier(0,0,0.2,1);
+        &:hover {
+            opacity: 0.9;
+            box-shadow: 0 2px 8px rgba(36,159,253,0.35);
+        }
     }
 
     .manage-rename-reset {
@@ -1090,11 +1212,11 @@ export default {
         color: #9aa5b4;
         background: none;
         border: 1px solid var(--border-color);
-        border-radius: 5px;
+        border-radius: 6px;
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
-        transition: color 0.2s, border-color 0.2s;
+        transition: color 0.2s, border-color 0.2s cubic-bezier(0,0,0.2,1);
         &:hover {
             color: var(--t1);
             border-color: var(--t1);
@@ -1130,14 +1252,18 @@ export default {
         font-weight: 600;
         color: #249ffd;
         background: none;
-        border: 1px solid #249ffd;
-        border-radius: 5px;
+        border: 1px solid rgba(36, 159, 253, 0.6);
+        border-radius: 6px;
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;
-        transition: background-color 0.2s;
+        transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         i { font-size: 15px; }
-        &:hover { background-color: rgba(36, 159, 253, 0.1); }
+        &:hover {
+            background-color: rgba(36, 159, 253, 0.08);
+            border-color: #249ffd;
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.12);
+        }
     }
 
     /* 图标选择器 */
@@ -1200,17 +1326,26 @@ export default {
         display: inline-flex;
         align-items: center;
         padding: 4px 10px 4px 6px;
-        border-radius: 20px;
-        border: 1px solid #e5e7eb;
-        background-color: var(--bg, #fff);
-        transition: background-color 0.15s, border-color 0.15s;
+        border-radius: 1rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        background-color: #f9fafb;
+        transition: background-color 0.15s, border-color 0.15s cubic-bezier(0,0,0.2,1);
         gap: 6px;
         &:hover {
-            background-color: rgba(0, 0, 0, 0.03);
-            border-color: #d1d5db;
+            background-color: #f3f4f6;
+            border-color: rgba(0,0,0,0.13);
         }
         &.is-hidden {
             opacity: 0.4;
+        }
+    }
+
+    body.dark .manage-item {
+        background-color: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.08);
+        &:hover {
+            background-color: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.13);
         }
     }
 
@@ -1273,12 +1408,14 @@ export default {
         padding: 24px;
         width: 100%;
         max-width: 420px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        border: 1px solid rgba(0,0,0,0.07);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
     }
 
     body.dark .card-edit-modal {
         background: #1e293b;
-        border: 1px solid rgba(66,76,94,0.5);
+        border: 1px solid rgba(255,255,255,0.07);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
     }
 
     .card-edit-header {
@@ -1347,6 +1484,7 @@ export default {
     }
 
     .card-edit-tabs {
+        position: relative;
         display: flex;
         gap: 6px;
         margin-bottom: 16px;
@@ -1356,6 +1494,24 @@ export default {
     }
 
     body.dark .card-edit-tabs { background: rgba(255,255,255,0.06); }
+
+    .tab-indicator {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        height: calc(100% - 8px);
+        width: 0;
+        background: #fff;
+        border-radius: 6px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    body.dark .tab-indicator {
+        background: #334155;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
 
     .card-edit-tab {
         flex: 1;
@@ -1367,24 +1523,19 @@ export default {
         border: none;
         border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: color 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 4px;
         white-space: nowrap;
+        position: relative;
+        z-index: 1;
         i { font-size: 13px; }
         &.active {
-            background: #fff;
             color: var(--theme);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
         }
         &:hover:not(.active) { color: var(--t1); }
-    }
-
-    body.dark .card-edit-tab.active {
-        background: #334155;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.3);
     }
 
     .card-edit-section {
@@ -1409,9 +1560,9 @@ export default {
         background: transparent;
         color: var(--t1);
         outline: none;
-        transition: border-color 0.2s;
+        transition: border-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         &::placeholder { color: #bcc5d0; }
-        &:focus { border-color: var(--theme); box-shadow: 0 0 0 3px rgba(36,159,253,0.1); }
+        &:focus { border-color: var(--theme); box-shadow: 0 0 0 3px rgba(36,159,253,0.12); }
     }
 
     .card-edit-auto-row {
@@ -1517,14 +1668,14 @@ export default {
         display: flex;
         align-items: center;
         gap: 4px;
-        transition: color 0.2s, border-color 0.2s;
+        transition: color 0.2s, border-color 0.2s cubic-bezier(0,0,0.2,1);
         i { font-size: 14px; }
         &:hover { color: var(--t1); border-color: var(--t1); }
     }
 
     .card-edit-delete {
         background: none;
-        border: 1px solid #f0c0cc;
+        border: 1px solid rgba(249,58,109,0.3);
         border-radius: 8px;
         padding: 8px 14px;
         font-size: 13px;
@@ -1533,9 +1684,12 @@ export default {
         display: flex;
         align-items: center;
         gap: 4px;
-        transition: background 0.2s;
+        transition: background 0.2s, border-color 0.2s cubic-bezier(0,0,0.2,1);
         i { font-size: 14px; }
-        &:hover { background: rgba(249,58,109,0.08); }
+        &:hover {
+            background: rgba(249,58,109,0.07);
+            border-color: rgba(249,58,109,0.6);
+        }
     }
 
     .card-edit-save {
@@ -1547,8 +1701,11 @@ export default {
         font-weight: 700;
         color: #fff;
         cursor: pointer;
-        transition: opacity 0.2s;
-        &:hover { opacity: 0.85; }
+        transition: opacity 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
+        &:hover {
+            opacity: 0.9;
+            box-shadow: 0 2px 10px rgba(36,159,253,0.4);
+        }
     }
 
     /* 过渡动画 */
@@ -1594,11 +1751,18 @@ export default {
 
     .manage-tag {
         font-size: 11px;
-        padding: 1px 6px;
-        border-radius: 3px;
-        background-color: rgba(36, 159, 253, 0.1);
+        padding: 2px 8px;
+        border-radius: 1rem;
+        background-color: color-mix(in oklab, #249ffd 10%, white);
+        border: 1px solid color-mix(in oklab, #249ffd 15%, white);
         color: var(--theme);
         flex-shrink: 0;
+        font-weight: 600;
+    }
+
+    body.dark .manage-tag {
+        background-color: color-mix(in oklab, #249ffd 15%, #1e293b);
+        border-color: color-mix(in oklab, #249ffd 22%, #1e293b);
     }
 
     .manage-url {
@@ -1665,16 +1829,17 @@ export default {
         padding: 7px 11px;
         font-size: 13px;
         border: 1px solid var(--border-color);
-        border-radius: 5px;
+        border-radius: 6px;
         background-color: transparent;
         color: var(--t1);
         outline: none;
-        transition: border-color 0.2s;
+        transition: border-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         &::placeholder {
             color: #bcc5d0;
         }
         &:focus {
             border-color: var(--theme);
+            box-shadow: 0 0 0 3px rgba(36,159,253,0.12);
         }
     }
 
@@ -1740,6 +1905,22 @@ export default {
         &:hover { background-color: rgba(36, 159, 253, 0.08); }
     }
 
+    /* draggable 排序占位符 */
+    .sortable-ghost {
+        opacity: 0.35;
+        background: rgba(36, 159, 253, 0.06) !important;
+        border: 1.5px dashed #249ffd !important;
+        border-radius: 12px;
+        box-shadow: none !important;
+        transition: none;
+    }
+    .sortable-chosen {
+        box-shadow: 0 8px 24px rgba(36, 159, 253, 0.22), 0 2px 8px rgba(0,0,0,0.1) !important;
+        transform: scale(1.02);
+        z-index: 10;
+        cursor: grabbing;
+    }
+
     /* 模块显示/隐藏面板 */
     .section-vis-panel {
         margin-bottom: 8px;
@@ -1765,8 +1946,9 @@ export default {
         align-items: center;
         gap: 6px;
         padding: 4px 10px 4px 6px;
-        border-radius: 20px;
-        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        border: 1px solid rgba(0,0,0,0.08);
+        background-color: #f9fafb;
         transition: opacity 0.15s;
         &.is-hidden {
             opacity: 0.45;
@@ -1774,7 +1956,8 @@ export default {
     }
 
     body.dark .section-vis-item {
-        border-color: rgba(66,76,94,0.6);
+        background-color: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.08);
     }
 
     .section-vis-name {
@@ -1813,17 +1996,19 @@ export default {
         border: 1px dashed var(--border-color);
         border-radius: 8px;
         cursor: pointer;
-        transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+        transition: color 0.2s, border-color 0.2s, background-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         i { font-size: 16px; }
         &:hover {
             color: #249ffd;
             border-color: rgba(36, 159, 253, 0.6);
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.08);
         }
         &.active {
             border-style: solid;
             color: #249ffd;
             border-color: #249ffd;
             background-color: rgba(36, 159, 253, 0.06);
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.1);
         }
     }
 
@@ -1840,11 +2025,12 @@ export default {
         border: 1px dashed rgba(36, 159, 253, 0.5);
         border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.2s, border-color 0.2s;
+        transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s cubic-bezier(0,0,0.2,1);
         i { font-size: 16px; }
         &:hover {
             background-color: rgba(36, 159, 253, 0.06);
             border-color: rgba(36, 159, 253, 0.8);
+            box-shadow: 0 0 0 3px rgba(36, 159, 253, 0.1);
         }
     }
 
