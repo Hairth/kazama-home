@@ -19,6 +19,7 @@ export const state = () => ({
         css: '',
         js: '',
         inNewTab: null,
+        hideSections: [],
         bg: {
             type: 'none',
             upload: {
@@ -59,6 +60,7 @@ export const state = () => ({
     customTools: [],
     sectionNames: {},
     toolIcons: {},
+    sectionIcons: {},
     customSections: [],
     sectionOrder: []
 });
@@ -136,6 +138,12 @@ export const mutations = {
         if (!icon) delete next[key];
         else next[key] = icon;
         state.toolIcons = next;
+    },
+    SET_SECTION_ICON(state, { key, icon }) {
+        const next = { ...state.sectionIcons };
+        if (!icon) delete next[key];
+        else next[key] = icon;
+        state.sectionIcons = next;
     },
     UPDATE_CUSTOM_TOOL(state, { id, name, url }) {
         const idx = state.customTools.findIndex(t => t.id === id);

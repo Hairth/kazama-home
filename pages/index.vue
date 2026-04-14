@@ -48,9 +48,9 @@
             >
                 <nya-container
                     v-for="section in sectionsList"
-                    v-show="!searchText"
+                    v-show="!searchText && !isSectionHidden(section._key)"
                     :key="section._key"
-                    :icon="section._type === 'builtin' ? section._data.icon : 'folder-outline'"
+                    :icon="$store.state.sectionIcons[section._key] || (section._type === 'builtin' ? section._data.icon : 'folder-outline')"
                     :title="section._type === 'builtin' ? getSectionTitle(section._data.title) : section._data.title"
                 >
                     <!-- 排序把手（排序模式） -->
@@ -147,6 +147,35 @@
                                 >还原</button>
                             </div>
 
+                            <!-- 图标选择 -->
+                            <div class="manage-icon-row">
+                                <i class="eva eva-image-outline"></i>
+                                <span class="manage-icon-label">模块图标</span>
+                                <button class="manage-icon-pick-btn" @click="toggleIconPicker(section._key)">
+                                    <i :class="'eva eva-' + ($store.state.sectionIcons[section._key] || (section._type === 'builtin' ? section._data.icon : 'folder-outline'))"></i>
+                                    更换图标
+                                </button>
+                                <button
+                                    v-if="$store.state.sectionIcons[section._key]"
+                                    class="manage-rename-reset"
+                                    @click="setSectionIcon(section._key, '')"
+                                >还原</button>
+                            </div>
+                            <!-- 图标选择器网格 -->
+                            <div v-if="iconPickerOpenKey === section._key" class="section-icon-picker">
+                                <div class="section-icon-grid">
+                                    <button
+                                        v-for="ico in sectionIconList"
+                                        :key="ico"
+                                        :class="['section-icon-item', { active: ($store.state.sectionIcons[section._key] || (section._type === 'builtin' ? section._data.icon : 'folder-outline')) === ico }]"
+                                        :title="ico"
+                                        @click="setSectionIcon(section._key, ico)"
+                                    >
+                                        <i :class="'eva eva-' + ico"></i>
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- 工具列表 -->
                             <div class="manage-list">
                                 <!-- 内置工具（仅内置模块） -->
@@ -195,11 +224,38 @@
                 </nya-container>
             </draggable>
 
-            <!-- 底部操作：排序 + 新建模块 -->
+            <!-- 模块显示/隐藏面板 -->
+            <transition name="section-vis-fade">
+                <div v-if="sectionVisibilityOpen && !searchText" class="section-vis-panel">
+                    <div class="section-vis-list">
+                        <div
+                            v-for="section in sectionsList"
+                            :key="'vis-' + section._key"
+                            class="section-vis-item"
+                            :class="{ 'is-hidden': isSectionHidden(section._key) }"
+                        >
+                            <button
+                                class="manage-toggle"
+                                :class="{ 'is-off': isSectionHidden(section._key) }"
+                                @click="toggleSectionVisibility(section._key)"
+                            >
+                                <i :class="'eva ' + (isSectionHidden(section._key) ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
+                            </button>
+                            <span class="section-vis-name">{{ section._type === 'builtin' ? getSectionTitle(section._data.title) : section._data.title }}</span>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+
+            <!-- 底部操作：排序 + 显示模块 + 新建模块 -->
             <div v-show="!searchText" class="bottom-actions-bar">
                 <button class="sort-mode-btn" :class="{ active: sortMode }" @click="toggleSortMode">
                     <i class="eva eva-swap-outline"></i>
                     {{ sortMode ? '完成排序' : '排序模块' }}
+                </button>
+                <button class="sort-mode-btn" :class="{ active: sectionVisibilityOpen }" @click="sectionVisibilityOpen = !sectionVisibilityOpen">
+                    <i class="eva eva-eye-outline"></i>
+                    显示模块
                 </button>
                 <button class="add-section-btn" @click="openAddSection">
                     <i class="eva eva-plus-circle-outline"></i>
@@ -424,7 +480,34 @@ export default {
             addSection: false,
             addSectionName: '',
             // 删除模块确认弹窗
-            deletingSectionConfirm: null
+            deletingSectionConfirm: null,
+            // 模块显示/隐藏面板
+            sectionVisibilityOpen: false,
+            // 图标选择器
+            iconPickerOpenKey: null,
+            sectionIconList: [
+                'folder-outline', 'folder-add-outline', 'archive-outline',
+                'grid-outline', 'layers-outline', 'layout-outline',
+                'bookmark-outline', 'briefcase-outline', 'cube-outline',
+                'code-outline', 'hash-outline', 'monitor-outline',
+                'image-outline', 'film-outline', 'music-outline',
+                'globe-outline', 'link-2-outline', 'wifi-outline',
+                'settings-2-outline', 'options-2-outline', 'options-outline',
+                'star-outline', 'heart-outline', 'award-outline',
+                'home-outline', 'people-outline', 'person-outline',
+                'shopping-cart-outline', 'shopping-bag-outline', 'pricetags-outline',
+                'bulb-outline', 'color-palette-outline', 'brush-outline',
+                'book-open-outline', 'book-outline', 'file-text-outline',
+                'trending-up-outline', 'bar-chart-outline', 'pie-chart-outline',
+                'hard-drive-outline', 'download-outline', 'upload-outline',
+                'lock-outline', 'shield-outline', 'keypad-outline',
+                'camera-outline', 'video-outline', 'headphones-outline',
+                'email-outline', 'bell-outline', 'message-circle-outline',
+                'calendar-outline', 'clock-outline', 'compass-outline',
+                'search-outline', 'map-outline', 'pin-outline',
+                'sun-outline', 'moon-outline', 'flash-outline',
+                'scissors-outline', 'gift-outline', 'flag-outline'
+            ]
         };
     },
     computed: {
@@ -483,12 +566,31 @@ export default {
             const key = section._key;
             if (this.managingSection === key) {
                 this.managingSection = null;
+                this.iconPickerOpenKey = null;
             } else {
                 this.managingSection = key;
+                this.iconPickerOpenKey = null;
                 this.renameSectionName = section._type === 'builtin'
                     ? (this.$store.state.sectionNames[section._data.title] || '')
                     : section._data.title;
             }
+        },
+        isSectionHidden(key) {
+            return (this.$store.state.setting.hideSections || []).includes(key);
+        },
+        toggleSectionVisibility(key) {
+            const list = [...(this.$store.state.setting.hideSections || [])];
+            const idx = list.indexOf(key);
+            if (idx === -1) list.push(key);
+            else list.splice(idx, 1);
+            this.$store.commit('SET_STORE', { key: 'setting.hideSections', value: list });
+        },
+        toggleIconPicker(key) {
+            this.iconPickerOpenKey = this.iconPickerOpenKey === key ? null : key;
+        },
+        setSectionIcon(key, icon) {
+            this.$store.commit('SET_SECTION_ICON', { key, icon });
+            this.iconPickerOpenKey = null;
         },
         syncSectionsList() {
             const builtIn = this.$store.state.tools.map(t => ({ _key: t.title, _type: 'builtin', _data: t }));
@@ -996,6 +1098,94 @@ export default {
         &:hover {
             color: var(--t1);
             border-color: var(--t1);
+        }
+    }
+
+    /* 图标行 */
+    .manage-icon-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 14px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--border-color);
+        i {
+            font-size: 16px;
+            color: #9aa5b4;
+            flex-shrink: 0;
+        }
+        .manage-icon-label {
+            font-size: 13px;
+            color: #9aa5b4;
+            white-space: nowrap;
+        }
+    }
+
+    .manage-icon-pick-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #249ffd;
+        background: none;
+        border: 1px solid #249ffd;
+        border-radius: 5px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 0.2s;
+        i { font-size: 15px; }
+        &:hover { background-color: rgba(36, 159, 253, 0.1); }
+    }
+
+    /* 图标选择器 */
+    .section-icon-picker {
+        padding-bottom: 14px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-icon-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .section-icon-item {
+        width: 34px;
+        height: 34px;
+        border-radius: 7px;
+        border: 1px solid #e5e7eb;
+        background: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+        color: #6b7280;
+        padding: 0;
+        i { font-size: 16px; }
+        &:hover {
+            background-color: rgba(36, 159, 253, 0.1);
+            border-color: #249ffd;
+            color: #249ffd;
+        }
+        &.active {
+            background-color: #249ffd;
+            border-color: #249ffd;
+            color: #fff;
+        }
+    }
+
+    body.dark .section-icon-item {
+        border-color: rgba(66,76,94,0.6);
+        color: #9aa5b4;
+        &:hover {
+            background-color: rgba(36, 159, 253, 0.15);
+            border-color: #249ffd;
+            color: #249ffd;
         }
     }
 
@@ -1548,6 +1738,59 @@ export default {
         i { font-size: 14px; }
         &:active { cursor: grabbing; }
         &:hover { background-color: rgba(36, 159, 253, 0.08); }
+    }
+
+    /* 模块显示/隐藏面板 */
+    .section-vis-panel {
+        margin-bottom: 8px;
+        padding: 12px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--t2);
+    }
+
+    body.dark .section-vis-panel {
+        background: #1a2234;
+        border-color: rgba(66,76,94,0.5);
+    }
+
+    .section-vis-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .section-vis-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px 4px 6px;
+        border-radius: 20px;
+        border: 1px solid #e5e7eb;
+        transition: opacity 0.15s;
+        &.is-hidden {
+            opacity: 0.45;
+        }
+    }
+
+    body.dark .section-vis-item {
+        border-color: rgba(66,76,94,0.6);
+    }
+
+    .section-vis-name {
+        font-size: 13px;
+        color: var(--t1);
+        white-space: nowrap;
+    }
+
+    .section-vis-fade-enter-active,
+    .section-vis-fade-leave-active {
+        transition: opacity 0.18s, transform 0.18s;
+    }
+    .section-vis-fade-enter,
+    .section-vis-fade-leave-to {
+        opacity: 0;
+        transform: translateY(-6px);
     }
 
     /* 底部操作栏 */

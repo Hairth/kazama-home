@@ -83,36 +83,32 @@ export default {
                 object-fit: contain;
                 pointer-events: none;
                 z-index: 0;
-                background-color: #f4f8fb;
             }
             .title-text {
                 position: relative;
                 z-index: 1;
             }
         }
-    }
-    body.dark & .title-bg-img {
-        background-color: #1a1d23;
-    }
-    .logout-btn {
-        position: absolute;
-        right: 0;
-        bottom: 8px;
-        background: none;
-        border: 1px solid #f93a6d;
-        border-radius: 6px;
-        padding: 5px 12px;
-        cursor: pointer;
-        color: #f93a6d;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13px;
-        font-weight: normal;
-        transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-        white-space: nowrap;
-        &:hover {
-            background-color: rgba(249, 58, 109, 0.08);
+        .logout-btn {
+            position: absolute;
+            right: 0;
+            bottom: 8px;
+            background: none;
+            border: 1px solid #f93a6d;
+            border-radius: 6px;
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #f93a6d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: normal;
+            transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+            white-space: nowrap;
+            &:hover {
+                background-color: rgba(249, 58, 109, 0.08);
+            }
         }
     }
 }
