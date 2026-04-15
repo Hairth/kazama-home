@@ -71,7 +71,7 @@
             <div v-if="showSakuraPanel" class="sakura-panel-backdrop" @click.self="showSakuraPanel = false">
                 <div ref="sakuraPanelEl" class="sakura-panel">
                     <div class="sakura-panel-header">
-                        <span class="sakura-panel-title">🌸 花瓣特效设置</span>
+                        <span class="sakura-panel-title">🌸 花びらエフェクト設定</span>
                         <button class="sakura-panel-close" @click="showSakuraPanel = false">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -80,14 +80,14 @@
                     </div>
                     <div class="sakura-panel-body">
                         <div class="sakura-toggle-row">
-                            <span class="sakura-toggle-label">启用樱花飘落特效</span>
+                            <span class="sakura-toggle-label">桜の花びらエフェクトを有効にする</span>
                             <div class="sakura-toggle-switch" :class="{ on: sakuraCfg.enabled }" @click="setSakura('setting.sakura.enabled', !sakuraCfg.enabled)">
                                 <div class="sakura-toggle-thumb"></div>
                             </div>
                         </div>
                         <template v-if="sakuraCfg.enabled">
                             <div class="sakura-panel-divider"></div>
-                            <div class="sakura-panel-subtitle">花瓣颜色</div>
+                            <div class="sakura-panel-subtitle">花びらの色</div>
                             <div class="sakura-color-row">
                                 <div
                                     v-for="(preset, i) in sakuraColorPresets"
@@ -103,25 +103,25 @@
                             </div>
                             <div class="sakura-panel-divider"></div>
                             <div class="sakura-slider-item">
-                                <div class="sakura-panel-subtitle">飘落速度 <span class="sakura-hint">（越大越慢）</span></div>
+                                <div class="sakura-panel-subtitle">落下速度 <span class="sakura-hint">（大きいほど遅い）</span></div>
                                 <client-only>
                                     <vue-slider :value="sakuraCfg.fallSpeed" :min="0.3" :max="5" :interval="0.1" lazy @change="setSakura('setting.sakura.fallSpeed', $event)" />
                                 </client-only>
                             </div>
                             <div class="sakura-slider-item">
-                                <div class="sakura-panel-subtitle">最大花瓣尺寸（px）</div>
+                                <div class="sakura-panel-subtitle">花びらの最大サイズ（px）</div>
                                 <client-only>
                                     <vue-slider :value="sakuraCfg.maxSize" :min="8" :max="40" :interval="1" lazy @change="setSakura('setting.sakura.maxSize', $event)" />
                                 </client-only>
                             </div>
                             <div class="sakura-slider-item">
-                                <div class="sakura-panel-subtitle">最小花瓣尺寸（px）</div>
+                                <div class="sakura-panel-subtitle">花びらの最小サイズ（px）</div>
                                 <client-only>
                                     <vue-slider :value="sakuraCfg.minSize" :min="4" :max="30" :interval="1" lazy @change="setSakura('setting.sakura.minSize', $event)" />
                                 </client-only>
                             </div>
                             <div class="sakura-slider-item">
-                                <div class="sakura-panel-subtitle">生成间隔（ms）<span class="sakura-hint">（越小越密）</span></div>
+                                <div class="sakura-panel-subtitle">生成間隔（ms）<span class="sakura-hint">（小さいほど密度が高い）</span></div>
                                 <client-only>
                                     <vue-slider :value="sakuraCfg.delay" :min="50" :max="1500" :interval="50" lazy @change="setSakura('setting.sakura.delay', $event)" />
                                 </client-only>
