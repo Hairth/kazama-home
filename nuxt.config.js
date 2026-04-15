@@ -27,6 +27,7 @@ module.exports = {
      */
     head: {
         title: `風間の屋`,
+        htmlAttrs: { lang: 'ja' },
         meta: [
             {
                 charset: 'utf-8'
@@ -37,20 +38,10 @@ module.exports = {
                 content: 'width=device-width, initial-scale=1'
             },
             {
-                hid: 'keywords',
-                name: 'keywords',
-                content: keywords
-            },
-            {
                 hid: 'description',
                 name: 'description',
                 itemprop: 'description',
-                content: '一个轻量的工具集合'
-            },
-            {
-                hid: 'author',
-                name: 'author',
-                content: 'Ice-Hazymoon'
+                content: '風間の部屋へようこそ'
             },
             {
                 name: 'HandheldFriendly',
@@ -213,7 +204,7 @@ module.exports = {
         }
     },
     manifest: {
-        description: '收集实用的小工具',
+        description: '風間の部屋へようこそ',
         display: 'standalone',
         name: '風間の屋',
         short_name: '風間の屋',
@@ -221,7 +212,7 @@ module.exports = {
         background_color: '#ffffff',
         theme_color: '#ffffff',
         scope: '/',
-        lang: 'zh-cn'
+        lang: 'ja'
     },
     // workbox: {
     //     runtimeCaching: [
