@@ -5,7 +5,7 @@
                 <nya-input
                     v-model.trim="keyword"
                     label="请输入要搜索的内容"
-                    placeholder="MikuTools是什么？"
+                    placeholder="搜索一下..."
                     autocomplete="off"
                     autofocus
                     @keyup.enter="go"

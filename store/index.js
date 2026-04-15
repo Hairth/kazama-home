@@ -56,7 +56,7 @@ export const state = () => ({
     env: env,
     syncTime: 0,
     isAuthenticated: false,
-    accessPassword: 'mikutools',
+    accessPassword: '123456',
     customTools: [],
     sectionNames: {},
     toolIcons: {},

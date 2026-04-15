@@ -62,7 +62,7 @@
         <nya-container title="说明">
             <ul class="nya-list">
                 <li>算法来源：<a href="https://github.com/bloc97/Anime4K" target="_blank" rel="noopener noreferrer">Anime4K</a></li>
-                <li>只是把官方 web 实现简单的移植到了mikutools；纯浏览器实现，因此原图（视频）、Scale 过大会卡死，请珍惜您的设备</li>
+                <li>纯浏览器实现，因此原图（视频）、Scale 过大会卡死，请珍惜您的设备</li>
                 <li>暂时不支持下载视频</li>
             </ul>
         </nya-container>

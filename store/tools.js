@@ -583,8 +583,6 @@ export const state = () => {
             }
             if (tool.head.keywords) {
                 tool.head.keywords = tool.head.keywords.concat([
-                    'MikuTools',
-                    'Ice-Hazymoon',
                     '在线工具'
                 ]);
                 head.meta.push({

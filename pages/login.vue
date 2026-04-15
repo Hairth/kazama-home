@@ -10,6 +10,12 @@
             }"
         ></div>
         <div class="login-card">
+            <button class="login-gear-btn" @click="showSakuraPanel = true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+                    <path d="M21.294 13.9l-.444-.256a9.1 9.1 0 0 0 0-3.29l.444-.256a3 3 0 1 0-3-5.196l-.445.257A8.977 8.977 0 0 0 15 4.513V4a3 3 0 0 0-6 0v.513a8.977 8.977 0 0 0-2.849 1.646L5.706 5.9a3 3 0 0 0-3 5.196l.444.256a9.1 9.1 0 0 0 0 3.29l-.444.256a3 3 0 1 0 3 5.197l.445-.257A8.977 8.977 0 0 0 9 21.487V22a3 3 0 0 0 6 0v-.513a8.978 8.978 0 0 0 2.849-1.646l.445.257a3 3 0 0 0 3-5.197zm-2.548 3.464a1 1 0 0 1-1.732 1l-.803-.464A7.016 7.016 0 0 1 13 19.366V20a1 1 0 0 1-2 0v-.634a7.016 7.016 0 0 1-3.211-1.466l-.803.464a1 1 0 0 1-1-1.732l.803-.464a7.132 7.132 0 0 1 0-3.7l-.803-.464a1 1 0 0 1 1-1.732l.803.464A7.016 7.016 0 0 1 11 4.634V4a1 1 0 0 1 2 0v.634a7.016 7.016 0 0 1 3.211 1.466l.803-.464a1 1 0 0 1 1 1.732l-.803.464a7.132 7.132 0 0 1 0 3.7l.803.464z"/>
+                </svg>
+            </button>
             <div class="login-header">
                 <div class="login-title-wrap">
                     <img src="/title-bg.png" class="login-title-bg" alt="" />
@@ -44,8 +50,6 @@
                         <span>7日間ログイン状態を保持する</span>
                     </label>
 
-                    <div ref="turnstileEl" class="turnstile-wrap"></div>
-
                     <p v-if="isLocked" class="login-error login-locked">
                         <i data-eva="lock-outline" data-eva-width="14" data-eva-height="14"></i>
                         {{ lockText }}
@@ -61,12 +65,83 @@
                 </form>
             </div>
         </div>
+
+        <!-- 花瓣特效设置面板 -->
+        <transition name="sakura-fade">
+            <div v-if="showSakuraPanel" class="sakura-panel-backdrop" @click.self="showSakuraPanel = false">
+                <div ref="sakuraPanelEl" class="sakura-panel">
+                    <div class="sakura-panel-header">
+                        <span class="sakura-panel-title">🌸 花瓣特效设置</span>
+                        <button class="sakura-panel-close" @click="showSakuraPanel = false">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="sakura-panel-body">
+                        <div class="sakura-toggle-row">
+                            <span class="sakura-toggle-label">启用樱花飘落特效</span>
+                            <div class="sakura-toggle-switch" :class="{ on: sakuraCfg.enabled }" @click="setSakura('setting.sakura.enabled', !sakuraCfg.enabled)">
+                                <div class="sakura-toggle-thumb"></div>
+                            </div>
+                        </div>
+                        <template v-if="sakuraCfg.enabled">
+                            <div class="sakura-panel-divider"></div>
+                            <div class="sakura-panel-subtitle">花瓣颜色</div>
+                            <div class="sakura-color-row">
+                                <div
+                                    v-for="(preset, i) in sakuraColorPresets"
+                                    :key="i"
+                                    class="sakura-swatch"
+                                    :class="{ active: sakuraCfg.colorPreset === i }"
+                                    :title="preset.label"
+                                    :style="{ background: preset.preview }"
+                                    @click="setSakura('setting.sakura.colorPreset', i)"
+                                >
+                                    <span v-if="sakuraCfg.colorPreset === i" class="swatch-check">✓</span>
+                                </div>
+                            </div>
+                            <div class="sakura-panel-divider"></div>
+                            <div class="sakura-slider-item">
+                                <div class="sakura-panel-subtitle">飘落速度 <span class="sakura-hint">（越大越慢）</span></div>
+                                <client-only>
+                                    <vue-slider :value="sakuraCfg.fallSpeed" :min="0.3" :max="5" :interval="0.1" lazy @change="setSakura('setting.sakura.fallSpeed', $event)" />
+                                </client-only>
+                            </div>
+                            <div class="sakura-slider-item">
+                                <div class="sakura-panel-subtitle">最大花瓣尺寸（px）</div>
+                                <client-only>
+                                    <vue-slider :value="sakuraCfg.maxSize" :min="8" :max="40" :interval="1" lazy @change="setSakura('setting.sakura.maxSize', $event)" />
+                                </client-only>
+                            </div>
+                            <div class="sakura-slider-item">
+                                <div class="sakura-panel-subtitle">最小花瓣尺寸（px）</div>
+                                <client-only>
+                                    <vue-slider :value="sakuraCfg.minSize" :min="4" :max="30" :interval="1" lazy @change="setSakura('setting.sakura.minSize', $event)" />
+                                </client-only>
+                            </div>
+                            <div class="sakura-slider-item">
+                                <div class="sakura-panel-subtitle">生成间隔（ms）<span class="sakura-hint">（越小越密）</span></div>
+                                <client-only>
+                                    <vue-slider :value="sakuraCfg.delay" :min="50" :max="1500" :interval="50" lazy @change="setSakura('setting.sakura.delay', $event)" />
+                                </client-only>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </transition>
     </div>
 </template>
 
 <script>
 import { COLOR_PRESETS } from '~/components/SetSakura';
 import { animate } from '~/assets/js/anime.esm.min.js';
+import 'vue-slider-component/theme/default.css';
+let VueSlider;
+if (process.browser) {
+    VueSlider = require('vue-slider-component');
+}
 
 const REMEMBER_KEY = 'miku_remember_until';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
@@ -111,6 +186,7 @@ function clearAttempts() {
 export default {
     name: 'Login',
     layout: 'blank',
+    components: { VueSlider },
     data() {
         return {
             password: '',
@@ -120,7 +196,8 @@ export default {
             lockRemaining: 0,
             attemptsLeft: MAX_ATTEMPTS,
             turnstileToken: '',
-            _sakura: null
+            _sakura: null,
+            showSakuraPanel: false
         };
     },
     computed: {
@@ -140,6 +217,9 @@ export default {
         },
         sakuraCfg() {
             return this.$store.state.setting.sakura || {};
+        },
+        sakuraColorPresets() {
+            return COLOR_PRESETS;
         }
     },
     async mounted() {
@@ -161,26 +241,13 @@ export default {
         this._refreshLock();
         this._timer = setInterval(() => this._refreshLock(), 1000);
 
-        // 等待 onNuxtReady 后（localStorage 数据已加载），再初始化 sakura
-        if (process.browser) {
-            window.onNuxtReady(() => {
-                if (this.sakuraCfg.enabled) {
-                    this._initSakura();
-                }
-            });
-        }
-
-        // 初始化 Turnstile
-        this._loadTurnstile().then(() => {
-            if (!this.$refs.turnstileEl || !window.turnstile) return;
-            window.turnstile.render(this.$refs.turnstileEl, {
-                sitekey: '0x4AAAAAAC80OiNZR2cIzP1t',
-                theme: this.$store.state.dark ? 'dark' : 'light',
-                callback: (token) => { this.turnstileToken = token; },
-                'expired-callback': () => { this.turnstileToken = ''; },
-                'error-callback': () => { this.turnstileToken = ''; }
-            });
+        // 等待 DOM 渲染完成后初始化 sakura
+        this.$nextTick(() => {
+            if (this.sakuraCfg.enabled) {
+                this._initSakura();
+            }
         });
+
     },
     watch: {
         'sakuraCfg.enabled'(val) {
@@ -192,6 +259,21 @@ export default {
         'sakuraCfg.minSize'() { this._restartSakura(); },
         'sakuraCfg.delay'() { this._restartSakura(); },
         'sakuraCfg.colorPreset'() { this._restartSakura(); },
+        showSakuraPanel(val) {
+            if (val) {
+                this.$nextTick(() => {
+                    if (this.$refs.sakuraPanelEl) {
+                        animate(this.$refs.sakuraPanelEl, {
+                            opacity: [0, 1],
+                            scale: [0.93, 1],
+                            translateY: [-14, 0],
+                            duration: 320,
+                            ease: 'outCubic'
+                        });
+                    }
+                });
+            }
+        },
         loading(val) {
             const btn = this.$el && this.$el.querySelector('.login-btn');
             if (!btn) return;
@@ -212,22 +294,10 @@ export default {
         clearInterval(this._timer);
         this._destroySakura();
         if (this._btnAnim) { this._btnAnim.pause(); this._btnAnim = null; }
-        if (window.turnstile && this.$refs.turnstileEl) {
-            try { window.turnstile.remove(this.$refs.turnstileEl); } catch (e) {}
-        }
     },
     methods: {
-        _loadTurnstile() {
-            return new Promise(resolve => {
-                if (window.turnstile) { resolve(); return; }
-                const s = document.createElement('script');
-                s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-                s.async = true;
-                s.defer = true;
-                s.onload = resolve;
-                s.onerror = resolve;
-                document.head.appendChild(s);
-            });
+        setSakura(key, value) {
+            this.$store.commit('SET_STORE', { key, value });
         },
         _loadSakuraAssets() {
             return new Promise(resolve => {
@@ -286,29 +356,9 @@ export default {
                 return;
             }
             if (this.isLocked) return;
-            if (!this.turnstileToken) {
-                this.error = '人機確認を完了してください';
-                return;
-            }
 
             this.loading = true;
             try {
-                // 验证 Turnstile token
-                const verifyRes = await fetch('/api/verify-turnstile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: this.turnstileToken })
-                });
-                const verifyData = await verifyRes.json();
-                if (!verifyData.success) {
-                    this.error = '人機確認に失敗しました、もう一度お試しください';
-                    this.turnstileToken = '';
-                    if (window.turnstile && this.$refs.turnstileEl) {
-                        window.turnstile.reset(this.$refs.turnstileEl);
-                    }
-                    this.loading = false;
-                    return;
-                }
                 const inputHash = await sha256(this.password);
 
                 // 迁移：首次使用时将明文密码升级为哈希
@@ -352,13 +402,13 @@ export default {
    确保花瓣离开视口后再被移除，避免停在底部继续左右漂移 */
 @keyframes fall {
     0%   { opacity: 0.9; top: 0; }
-    75%  { opacity: 0.8; }
-    100% { opacity: 0;   top: 100%; }
+    80%  { opacity: 0.8; }
+    100% { opacity: 0;   top: 120%; }
 }
 @-webkit-keyframes fall {
     0%   { opacity: 0.9; top: 0; }
-    75%  { opacity: 0.8; }
-    100% { opacity: 0;   top: 100%; }
+    80%  { opacity: 0.8; }
+    100% { opacity: 0;   top: 120%; }
 }
 
 /* sakura 花瓣置于最顶层 */
@@ -611,5 +661,197 @@ export default {
         width: calc(100vw - 40px);
         padding: 32px 24px 28px;
     }
+}
+
+/* ── 齿轮按钮 ── */
+.login-card {
+    position: relative;
+}
+.login-gear-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #b0bec5;
+    transition: color 0.2s, background 0.2s, transform 0.35s cubic-bezier(0,0,0.2,1);
+    z-index: 10;
+    padding: 0;
+    &:hover {
+        color: #249ffd;
+        background: rgba(36, 159, 253, 0.1);
+        transform: rotate(72deg);
+    }
+}
+.dark .login-gear-btn {
+    color: #64748b;
+    &:hover { color: #249ffd; background: rgba(36,159,253,0.12); }
+}
+
+/* ── 面板过渡 ── */
+.sakura-fade-enter-active { transition: opacity 0.22s; }
+.sakura-fade-leave-active { transition: opacity 0.18s; }
+.sakura-fade-enter, .sakura-fade-leave-to { opacity: 0; }
+
+/* ── 背景遮罩 ── */
+.sakura-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+/* ── 面板主体 ── */
+.sakura-panel {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.dark .sakura-panel {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.sakura-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.dark .sakura-panel-header { border-color: #334155; }
+
+.sakura-panel-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #249ffd;
+    letter-spacing: 0.3px;
+}
+.dark .sakura-panel-title { color: #60aef0; }
+
+.sakura-panel-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    padding: 0;
+    transition: color 0.2s, background 0.2s;
+    &:hover { color: #f93a6d; background: rgba(249,58,109,0.08); }
+}
+
+.sakura-panel-body {
+    padding: 14px 18px 18px;
+}
+
+/* ── 开关行 ── */
+.sakura-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+.sakura-toggle-label {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+.dark .sakura-toggle-label { color: #e2e8f0; }
+
+.sakura-toggle-switch {
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    background: #dce1e9;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.25s cubic-bezier(0,0,0.2,1);
+    flex-shrink: 0;
+    &.on { background: #249ffd; }
+    .sakura-toggle-thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        transition: transform 0.25s cubic-bezier(0,0,0.2,1);
+    }
+    &.on .sakura-toggle-thumb { transform: translateX(18px); }
+}
+.dark .sakura-toggle-switch { background: #475569; }
+.dark .sakura-toggle-switch.on { background: #249ffd; }
+
+/* ── 分割线 ── */
+.sakura-panel-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.06);
+    margin: 12px 0;
+}
+.dark .sakura-panel-divider { background: #334155; }
+
+/* ── 小标题 ── */
+.sakura-panel-subtitle {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.dark .sakura-panel-subtitle { color: #94a3b8; }
+.sakura-hint { font-weight: 400; text-transform: none; font-size: 11px; color: #9ca3af; }
+
+/* ── 颜色色块 ── */
+.sakura-color-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.sakura-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.2s;
+    font-size: 14px;
+    color: #fff;
+    &:hover { transform: scale(1.1); }
+    &.active { border-color: #249ffd; transform: scale(1.05); }
+}
+.swatch-check { font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+
+/* ── 滑块行 ── */
+.sakura-slider-item {
+    margin-bottom: 14px;
+    &:last-child { margin-bottom: 0; }
 }
 </style>

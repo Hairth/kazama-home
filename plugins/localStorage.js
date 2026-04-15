@@ -69,6 +69,17 @@ export default ({ store }) => {
         await loadFromCloud(store);
         cloudLoading = false;
 
+        // 兜底：旧版配置没有 sakura 字段时，补上默认值（enabled: true）
+        // 必须替换整个 setting 对象，否则 Vue 2 检测不到新增属性，watcher 不会触发
+        if (!store.state.setting || !store.state.setting.sakura) {
+            store.commit('SET_STORE', {
+                key: 'setting',
+                value: Object.assign({}, store.state.setting, {
+                    sakura: { enabled: true, fallSpeed: 1, maxSize: 14, minSize: 10, delay: 300, colorPreset: 0 }
+                })
+            });
+        }
+
         // 清除残留测试背景（bg-preview.png）
         const bgState = store.state.setting && store.state.setting.bg;
         if (bgState && bgState.upload && bgState.upload.url === '/bg-preview.png') {

@@ -58,7 +58,7 @@ module.exports = {
             },
             {
                 property: 'og:site_name',
-                content: 'MikuTools'
+                content: '風間の屋'
             },
             {
                 name: 'mobile-web-app-capable',
@@ -66,7 +66,7 @@ module.exports = {
             },
             {
                 name: 'apple-mobile-web-app-title',
-                content: 'MikuTools'
+                content: '風間の屋'
             },
             {
                 name: 'apple-mobile-web-app-status-bar-style',
@@ -215,8 +215,8 @@ module.exports = {
     manifest: {
         description: '收集实用的小工具',
         display: 'standalone',
-        name: 'MikuTools',
-        short_name: 'MikuTools',
+        name: '風間の屋',
+        short_name: '風間の屋',
         start_url: '/',
         background_color: '#ffffff',
         theme_color: '#ffffff',

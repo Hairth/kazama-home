@@ -10,7 +10,7 @@
                 autofocus
                 autocomplete="off"
                 label="旧文本"
-                placeholder="console.log('mikutools')"
+                placeholder="console.log('hello')"
             />
             <nya-input
                 v-model="newString"

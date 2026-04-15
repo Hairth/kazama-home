@@ -75,7 +75,7 @@ export default {
                         {
                             name: 'GitHub地址',
                             description: '给个 star 呗',
-                            link: 'https://github.com/Ice-Hazymoon/MikuTools'
+                            link: 'https://github.com/Hairth/kazama-home'
                         },
                         {
                             name: '服务器提供商（注册送 50 美元余额）',
