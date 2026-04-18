@@ -371,6 +371,7 @@ export default {
                 if (inputHash === storedHash) {
                     clearAttempts();
                     this.$store.commit('SET_AUTH', true);
+                    sessionStorage.setItem('miku_session_auth', '1');
                     if (this.remember) {
                         localStorage.setItem(REMEMBER_KEY, String(Date.now() + SEVEN_DAYS));
                     } else {

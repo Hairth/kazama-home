@@ -61,8 +61,15 @@ export default ({ store }) => {
 
         createPersistedState({
             key: 'miku_vuex',
-            paths: ['dark', 'setting', 'syncTime', 'noticeId', 'welcome', 'isAuthenticated', 'accessPassword', 'customTools', 'sectionNames', 'toolIcons', 'sectionIcons', 'customSections', 'sectionOrder']
+            paths: ['dark', 'setting', 'syncTime', 'noticeId', 'welcome', 'accessPassword', 'customTools', 'sectionNames', 'toolIcons', 'sectionIcons', 'customSections', 'sectionOrder']
         })(store);
+
+        // 页面刷新时，从 sessionStorage 恢复会话认证状态
+        try {
+            if (sessionStorage.getItem('miku_session_auth') === '1') {
+                store.commit('SET_AUTH', true);
+            }
+        } catch (e) {}
 
         // 从云端加载（优先级最高，覆盖 localStorage）
         cloudLoading = true;

@@ -15,13 +15,12 @@ export default function ({ store, redirect, route }) {
         }
     } catch (e) {}
 
-    // 检查 Vuex store（vuex-persistedstate 已加载时有效）
+    // 当前会话已认证（SPA 路由跳转时 store 在内存中有效）
     if (store.state.isAuthenticated) return;
 
-    // 兜底：直接读 localStorage（页面初始化时 vuex-persistedstate 可能还未注水）
+    // 页面刷新时 store 尚未水合，直接读 sessionStorage
     try {
-        const saved = JSON.parse(localStorage.getItem('miku_vuex') || '{}');
-        if (saved.isAuthenticated) {
+        if (sessionStorage.getItem('miku_session_auth') === '1') {
             store.commit('SET_AUTH', true);
             return;
         }
