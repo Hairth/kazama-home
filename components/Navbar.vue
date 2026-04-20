@@ -7,11 +7,6 @@
                     <span class="title-text">風間の屋</span>
                 </nuxt-link>
             </h1>
-            <Panel />
-            <button v-if="$route.path === '/'" class="logout-btn" title="退出登录" @click="handleLogout">
-                <i data-eva="log-out-outline" data-eva-width="16" data-eva-height="16"></i>
-                <span>退出登录</span>
-            </button>
         </header>
     </div>
 </template>
@@ -35,6 +30,12 @@ export default {
 
 
 <style lang="scss">
+@keyframes title-gradient-move {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 .navbar {
     box-sizing: border-box;
     padding-top: 20px;
@@ -55,6 +56,7 @@ export default {
         position: relative;
         .title {
             margin-bottom: 5px;
+            margin-top: -13px;
             display: flex;
             align-items: center;
             color: var(--t1);
@@ -77,7 +79,7 @@ export default {
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                transform: translate(-50%, -50%);
+                transform: translate(-50%, -50%) scale(1.53);
                 width: 270px;
                 height: 270px;
                 object-fit: contain;
@@ -87,6 +89,13 @@ export default {
             .title-text {
                 position: relative;
                 z-index: 1;
+                font-size: 3.25rem;
+                background: linear-gradient(90deg, #ffb3e6, #c4b0f5, #87ceeb, #c4b0f5, #ffb3e6);
+                background-size: 300% 100%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                animation: title-gradient-move 4s linear infinite;
             }
         }
         .logout-btn {

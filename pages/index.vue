@@ -1,5 +1,13 @@
 <template>
     <div class="home">
+        <ServerUptime />
+        <div class="pre-weather-bar">
+            <a href="https://github.com/Ice-Hazymoon/MikuTools" target="_blank" rel="noopener noreferrer" class="pre-weather-link">Powered by MikuTools</a>
+            <button v-if="$route.path === '/'" class="logout-btn" @click="handleLogout">
+                <i data-eva="log-out-outline" data-eva-width="16" data-eva-height="16"></i>
+                <span>退出登录</span>
+            </button>
+        </div>
         <Welcome />
         <Search v-model="searchText" @enter="enterFirst">
             <template slot-scope="data">
@@ -440,6 +448,7 @@ import Favorites from '~/components/Favorites';
 import Search from '~/components/Search';
 import isMobile from 'ismobilejs';
 import Welcome from '~/components/Welcome';
+import ServerUptime from '~/components/ServerUptime';
 import draggable from 'vuedraggable';
 import { animate, stagger, utils } from '~/assets/js/anime.esm.min.js';
 export default {
@@ -448,6 +457,7 @@ export default {
         Favorites,
         Search,
         Welcome,
+        ServerUptime,
         draggable
     },
     head() {
@@ -630,6 +640,12 @@ export default {
         }
     },
     methods: {
+        handleLogout() {
+            this.$store.commit('SET_AUTH', false);
+            localStorage.removeItem('miku_remember_until');
+            try { sessionStorage.removeItem('miku_session_auth'); } catch (e) {}
+            this.$router.replace('/login');
+        },
         _positionTabIndicator(animated) {
             const indicator = this.$refs.tabIndicator;
             if (!indicator) return;
@@ -919,6 +935,44 @@ export default {
 </script>
 
 <style lang="scss">
+
+.pre-weather-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-bottom: 6px;
+
+    .pre-weather-link {
+        font-size: 14.3px;
+        position: relative;
+        left: 10px;
+        font-weight: 700;
+        color: #1a8fe8;
+        text-decoration: none;
+        &:hover { color: #249ffd; }
+    }
+
+    .logout-btn {
+        position: absolute;
+        right: 0;
+        background: none;
+        border: 1px solid #f93a6d;
+        border-radius: 6px;
+        padding: 4px 12px;
+        cursor: pointer;
+        color: #f93a6d;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: bold;
+        transition: background-color 0.2s;
+        white-space: nowrap;
+        &:hover { background-color: rgba(249, 58, 109, 0.08); }
+    }
+}
+
 .home {
     span.mb {
         display: block;
