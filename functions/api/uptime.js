@@ -1,7 +1,8 @@
-const START_TIME = Date.now();
+let startTime = null;
 
 export async function onRequest() {
-    return new Response(JSON.stringify({ startTime: START_TIME }), {
+    if (!startTime) startTime = Date.now();
+    return new Response(JSON.stringify({ startTime }), {
         headers: { 'Content-Type': 'application/json' }
     });
 }
