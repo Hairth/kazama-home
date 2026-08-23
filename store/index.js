@@ -62,7 +62,8 @@ export const state = () => ({
     toolIcons: {},
     sectionIcons: {},
     customSections: [],
-    sectionOrder: []
+    sectionOrder: [],
+    toolOrder: {}
 });
 
 const disabledMouseWheel = e => e.stopPropagation();
@@ -113,6 +114,11 @@ export const mutations = {
     },
     REMOVE_CUSTOM_TOOL(state, id) {
         state.customTools = state.customTools.filter(t => t.id !== id);
+        const key = 'custom:' + id;
+        state.toolOrder = Object.keys(state.toolOrder).reduce((next, sectionKey) => {
+            next[sectionKey] = state.toolOrder[sectionKey].filter(itemKey => itemKey !== key);
+            return next;
+        }, {});
     },
     TOGGLE_CUSTOM_TOOL(state, id) {
         const idx = state.customTools.findIndex(t => t.id === id);
@@ -170,9 +176,18 @@ export const mutations = {
             state.customSections = state.customSections.filter(s => s.id !== id);
             state.customTools = state.customTools.filter(t => t.sectionTitle !== section.title);
             state.sectionOrder = state.sectionOrder.filter(k => k !== 'cs:' + id);
+            const nextToolOrder = { ...state.toolOrder };
+            delete nextToolOrder['cs:' + id];
+            state.toolOrder = nextToolOrder;
         }
     },
     SET_SECTION_ORDER(state, order) {
         state.sectionOrder = [...order];
+    },
+    SET_TOOL_ORDER(state, { sectionKey, order }) {
+        state.toolOrder = {
+            ...state.toolOrder,
+            [sectionKey]: [...order]
+        };
     }
 };

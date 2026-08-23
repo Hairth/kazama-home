@@ -80,51 +80,74 @@
                     <!-- 工具卡片网格 + 管理面板（排序模式下隐藏） -->
                     <template v-if="!sortMode">
                         <!-- 工具卡片网格（始终显示） -->
-                        <div class="tool-card-grid">
-                            <!-- 内置工具卡片 -->
-                            <template v-if="section._type === 'builtin'">
-                                <nuxt-link
-                                    v-for="(tool, index2) in section._data.list"
-                                    v-show="!isHidden(tool.path)"
-                                    :key="'card-' + section._key + '-' + index2"
-                                    class="tool-card"
-                                    :target="($store.state.setting.inNewTab && tool.path !== '/setting') ? '_blank' : '_self'"
-                                    :title="tool.name"
-                                    :to="tool.path"
+                        <draggable
+                            :list="sectionToolLists[section._key] || []"
+                            tag="div"
+                            class="tool-card-grid"
+                            draggable=".tool-card-sortable"
+                            filter=".tool-card-edit-btn"
+                            :prevent-on-filter="false"
+                            :disabled="managingSection === section._key"
+                            :animation="180"
+                            :delay="420"
+                            :delay-on-touch-only="false"
+                            :touch-start-threshold="4"
+                            :force-fallback="true"
+                            :fallback-tolerance="5"
+                            ghost-class="tool-card-ghost"
+                            chosen-class="tool-card-chosen"
+                            drag-class="tool-card-dragging"
+                            @start="onToolDragStart"
+                            @end="onToolDragEnd(section._key)"
+                        >
+                            <template v-for="card in (sectionToolLists[section._key] || [])">
+                                <div
+                                    v-if="card._type === 'builtin'"
+                                    v-show="!isHidden(card._data.path)"
+                                    :key="card._key"
+                                    class="tool-card tool-card-sortable"
+                                    :title="card._data.name"
+                                    role="link"
+                                    tabindex="0"
+                                    @click="openBuiltInCard(card._data, $event)"
+                                    @keydown.enter.prevent="openBuiltInCard(card._data, $event)"
+                                    @contextmenu.prevent
                                 >
-                                    <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
-                                        <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
-                                        <span v-else>{{ getToolIcon(tool) }}</span>
+                                    <div class="tool-card-icon" :style="isImageIcon(getToolIcon(card._data)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(card._data.name) }">
+                                        <img v-if="isImageIcon(getToolIcon(card._data))" :src="getToolIcon(card._data)" class="tool-card-img" @error="$event.target.style.display='none'" />
+                                        <span v-else>{{ getToolIcon(card._data) }}</span>
                                     </div>
-                                    <span class="tool-card-name">{{ tool.name }}</span>
-                                    <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, true)">
+                                    <span class="tool-card-name">{{ card._data.name }}</span>
+                                    <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(card._data, true)">
                                         <i class="eva eva-settings-2-outline"></i>
                                     </button>
-                                </nuxt-link>
-                            </template>
-                            <!-- 自定义工具卡片 -->
-                            <a
-                                v-for="tool in customToolsForSection(section._data.title)"
-                                v-show="!tool.hidden"
-                                :key="'card-custom-' + tool.id"
-                                class="tool-card"
-                                :href="tool.url"
-                                :title="tool.name"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <div class="tool-card-icon" :style="isImageIcon(getToolIcon(tool)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(tool.name) }">
-                                    <img v-if="isImageIcon(getToolIcon(tool))" :src="getToolIcon(tool)" class="tool-card-img" @error="$event.target.style.display='none'" />
-                                    <span v-else>{{ getToolIcon(tool) }}</span>
                                 </div>
-                                <span class="tool-card-name">{{ tool.name }}</span>
-                                <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(tool, false)">
-                                    <i class="eva eva-settings-2-outline"></i>
-                                </button>
-                            </a>
+                                <div
+                                    v-else
+                                    v-show="!card._data.hidden"
+                                    :key="card._key"
+                                    class="tool-card tool-card-sortable"
+                                    :title="card._data.name"
+                                    role="link"
+                                    tabindex="0"
+                                    @click="openCustomCard(card._data, $event)"
+                                    @keydown.enter.prevent="openCustomCard(card._data, $event)"
+                                    @contextmenu.prevent
+                                >
+                                    <div class="tool-card-icon" :style="isImageIcon(getToolIcon(card._data)) ? { background: 'var(--card-icon-bg)' } : { background: cardColor(card._data.name) }">
+                                        <img v-if="isImageIcon(getToolIcon(card._data))" :src="getToolIcon(card._data)" class="tool-card-img" @error="$event.target.style.display='none'" />
+                                        <span v-else>{{ getToolIcon(card._data) }}</span>
+                                    </div>
+                                    <span class="tool-card-name">{{ card._data.name }}</span>
+                                    <button class="tool-card-edit-btn" @click.prevent.stop="openCardEdit(card._data, false)">
+                                        <i class="eva eva-settings-2-outline"></i>
+                                    </button>
+                                </div>
+                            </template>
                             <!-- + 添加工具卡片（仅管理模式） -->
                             <div
                                 v-if="managingSection === section._key"
+                                slot="footer"
                                 class="tool-card tool-card-add"
                                 @click="openAddTool(section._data.title)"
                             >
@@ -133,7 +156,7 @@
                                 </div>
                                 <span class="tool-card-name">添加工具</span>
                             </div>
-                        </div>
+                        </draggable>
 
                         <!-- 管理面板（仅管理模式，显示在网格下方） -->
                         <div v-if="managingSection === section._key" class="manage-panel">
@@ -473,7 +496,10 @@ export default {
             managingSection: null,
             renameSectionName: '',
             sectionsList: [],
+            sectionToolLists: {},
             sortMode: false,
+            isToolDragging: false,
+            suppressCardClickUntil: 0,
             // 卡片编辑模态窗
             cardEdit: null,
             cardEditIconType: 'emoji',
@@ -553,6 +579,7 @@ export default {
         this._onCardOver = (e) => {
             const card = e.target.closest('.tool-card');
             if (!card || card.classList.contains('tool-card-add')) return;
+            if (this.isToolDragging) return;
             if (card.contains(e.relatedTarget)) return;
             // 读图标颜色，写入 --glow-color
             const icon = card.querySelector('.tool-card-icon');
@@ -569,6 +596,7 @@ export default {
         this._onCardOut = (e) => {
             const card = e.target.closest('.tool-card');
             if (!card || card.classList.contains('tool-card-add')) return;
+            if (this.isToolDragging) return;
             if (card.contains(e.relatedTarget)) return;
             animate(card, { translateY: 0, rotateX: 0, rotateY: 0, duration: 500, ease: 'outBack' });
             const icon = card.querySelector('.tool-card-icon');
@@ -578,6 +606,7 @@ export default {
         this._onCardMove = (e) => {
             const card = e.target.closest('.tool-card');
             if (!card || card.classList.contains('tool-card-add')) return;
+            if (this.isToolDragging) return;
             const rect = card.getBoundingClientRect();
             const rx = ((e.clientY - rect.top) / rect.height - 0.5) * -17;
             const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 17;
@@ -611,10 +640,19 @@ export default {
             this.$el.removeEventListener('mouseover', this._onBtnOver);
             this.$el.removeEventListener('mouseout', this._onBtnOut);
         }
+        document.body.classList.remove('tool-card-drag-active');
     },
     watch: {
         '$store.state.customSections'() { this.syncSectionsList(); },
         '$store.state.sectionOrder'() { this.syncSectionsList(); },
+        '$store.state.customTools': {
+            handler() { this.syncToolLists(); },
+            deep: true
+        },
+        '$store.state.toolOrder': {
+            handler() { this.syncToolLists(); },
+            deep: true
+        },
         cardEditIconType() {
             this.$nextTick(() => this._positionTabIndicator(true));
         },
@@ -731,10 +769,77 @@ export default {
             const custom = this.$store.state.customSections.map(s => ({ _key: 'cs:' + s.id, _type: 'custom', _data: s }));
             const all = [...builtIn, ...custom];
             const order = this.$store.state.sectionOrder || [];
-            if (!order.length) { this.sectionsList = all; return; }
-            const ordered = order.map(k => all.find(s => s._key === k)).filter(Boolean);
-            const unordered = all.filter(s => !order.includes(s._key));
-            this.sectionsList = [...ordered, ...unordered];
+            if (!order.length) {
+                this.sectionsList = all;
+            } else {
+                const ordered = order.map(k => all.find(s => s._key === k)).filter(Boolean);
+                const unordered = all.filter(s => !order.includes(s._key));
+                this.sectionsList = [...ordered, ...unordered];
+            }
+            this.syncToolLists();
+        },
+        syncToolLists() {
+            const next = {};
+            this.sectionsList.forEach(section => {
+                const builtInCards = section._type === 'builtin'
+                    ? section._data.list.map(tool => ({
+                        _key: 'builtin:' + tool.path,
+                        _type: 'builtin',
+                        _data: tool
+                    }))
+                    : [];
+                const customCards = this.customToolsForSection(section._data.title).map(tool => ({
+                    _key: 'custom:' + tool.id,
+                    _type: 'custom',
+                    _data: tool
+                }));
+                const cards = [...builtInCards, ...customCards];
+                const order = (this.$store.state.toolOrder && this.$store.state.toolOrder[section._key]) || [];
+                const ordered = order.map(key => cards.find(card => card._key === key)).filter(Boolean);
+                const unordered = cards.filter(card => !order.includes(card._key));
+                next[section._key] = [...ordered, ...unordered];
+            });
+            this.sectionToolLists = next;
+        },
+        onToolDragStart(event) {
+            this.isToolDragging = true;
+            if (event && event.item) {
+                utils.set(event.item, { translateY: 0, rotateX: 0, rotateY: 0 });
+            }
+            document.body.classList.add('tool-card-drag-active');
+        },
+        onToolDragEnd(sectionKey) {
+            const cards = this.sectionToolLists[sectionKey] || [];
+            this.$store.commit('SET_TOOL_ORDER', {
+                sectionKey,
+                order: cards.map(card => card._key)
+            });
+            this.suppressCardClickUntil = Date.now() + 350;
+            this.$nextTick(() => {
+                this.isToolDragging = false;
+                document.body.classList.remove('tool-card-drag-active');
+            });
+        },
+        guardToolCardClick(event) {
+            if (this.isToolDragging || Date.now() < this.suppressCardClickUntil) {
+                event.preventDefault();
+                event.stopPropagation();
+                return false;
+            }
+            return true;
+        },
+        openBuiltInCard(tool, event) {
+            if (!this.guardToolCardClick(event)) return;
+            if (this.$store.state.setting.inNewTab && tool.path !== '/setting') {
+                window.open(tool.path, '_blank', 'noopener,noreferrer');
+            } else {
+                this.$router.push(tool.path);
+            }
+        },
+        openCustomCard(tool, event) {
+            if (!this.guardToolCardClick(event)) return;
+            const opened = window.open(tool.url, '_blank', 'noopener,noreferrer');
+            if (opened) opened.opener = null;
         },
         onSectionDragEnd() {
             this.$store.commit('SET_SECTION_ORDER', this.sectionsList.map(s => s._key));
@@ -1122,6 +1227,28 @@ export default {
             opacity: 0.28;
             filter: grayscale(0.5);
         }
+    }
+
+    .tool-card-sortable {
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+    }
+
+    .tool-card-grid .tool-card-ghost {
+        opacity: 0.3 !important;
+        background: rgba(36, 159, 253, 0.08) !important;
+        border: 1.5px dashed #249ffd !important;
+        box-shadow: none !important;
+    }
+
+    .tool-card-grid .tool-card-chosen,
+    .tool-card-grid .tool-card-dragging {
+        cursor: grabbing;
+        box-shadow: 0 10px 28px rgba(36, 159, 253, 0.28), 0 3px 10px rgba(0,0,0,0.14) !important;
+        transform: scale(1.03) !important;
+        z-index: 20;
     }
 
     body.dark .tool-card {
