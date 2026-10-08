@@ -31,60 +31,76 @@ export default {
 <style lang="scss">
 .nya-container {
     position: relative;
-    padding: 25px 32px;
-    margin-top: 18px;
-    margin-bottom: 50px;
-    box-shadow: 8px 14px 38px rgba(39, 44, 49, 0.06),
-        1px 3px 8px rgba(39, 44, 49, 0.03);
+    padding: 26px 30px;
+    margin-top: 22px;
+    margin-bottom: 36px;
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05),
+                0 2px 6px -1px rgba(15, 23, 42, 0.02);
     background-color: #fff;
-    border: 1px solid rgba(0,0,0,0.06);
-    border-radius: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 14px;
+    transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
     &.pt {
-        padding-top: 35px;
+        padding-top: 36px;
     }
     &.transparent {
-        background-color: rgba($color: #fff, $alpha: 0.65);
+        background-color: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
     &:last-child {
         margin-bottom: 0;
     }
     .nya-stitle {
         position: absolute;
-        right: 15px;
-        top: 8px;
+        right: 18px;
+        top: 10px;
         font-size: 13px;
-        color: rgb(177, 177, 177);
+        color: #94a3b8;
     }
     .nya-title {
         position: absolute;
-        left: 30px;
-        top: -18px;
-        padding: 8px 15px;
-        font-weight: bold;
+        left: 24px;
+        top: -16px;
+        padding: 7px 16px;
+        font-weight: 700;
         font-size: 0;
-        background-color: var(--theme);
+        background: linear-gradient(135deg, var(--theme) 0%, #1a82d6 100%);
         color: #fff;
-        box-shadow: 0 4px 12px rgba(36, 159, 253, 0.35);
-        border-radius: 10px;
+        box-shadow: 0 4px 14px rgba(36, 159, 253, 0.35);
+        border-radius: 9px;
+        letter-spacing: 0.3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        z-index: 1;
+
         i {
-            margin-right: 5px;
-            font-size: 20px;
+            font-size: 18px;
             vertical-align: middle;
         }
         span {
-            font-size: 17px;
-            line-height: 20px;
+            font-size: 15px;
+            line-height: 1.3;
             vertical-align: middle;
+            font-weight: 700;
         }
     }
 
     @media (max-width: 600px) {
-        padding: 15px;
+        padding: 16px;
+        margin-bottom: 26px;
         &.pt {
-            padding-top: 30px;
+            padding-top: 32px;
         }
         .nya-title {
-            left: 20px;
+            left: 16px;
+            padding: 6px 13px;
+            span {
+                font-size: 14px;
+            }
         }
     }
 
@@ -95,10 +111,10 @@ export default {
 
 body.dark .nya-container {
     background-color: #1e293b;
-    border-color: rgba(255,255,255,0.06);
-    box-shadow: 8px 14px 38px rgba(0, 0, 0, 0.15), 1px 3px 8px rgba(0, 0, 0, 0.08);
+    border-color: rgba(51, 65, 85, 0.7);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.15);
     &.transparent {
-        background-color: rgba(30, 41, 59, 0.7);
+        background-color: rgba(30, 41, 59, 0.78);
     }
 }
 </style>
