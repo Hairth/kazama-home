@@ -81,26 +81,29 @@
                     <template v-if="!sortMode">
                         <!-- 工具卡片网格（始终显示） -->
                         <draggable
-                            :list="sectionToolLists[section._key] || []"
+                            :list="sectionToolLists[section._key]"
                             tag="div"
                             class="tool-card-grid"
                             draggable=".tool-card-sortable"
                             filter=".tool-card-edit-btn"
                             :prevent-on-filter="false"
+                            :group="toolDragGroup"
                             :disabled="managingSection === section._key"
                             :animation="180"
                             :delay="420"
                             :delay-on-touch-only="false"
                             :touch-start-threshold="4"
                             :force-fallback="true"
+                            :fallback-on-body="true"
                             :fallback-tolerance="5"
+                            :empty-insert-threshold="48"
                             ghost-class="tool-card-ghost"
                             chosen-class="tool-card-chosen"
                             drag-class="tool-card-dragging"
                             @start="onToolDragStart"
-                            @end="onToolDragEnd(section._key)"
+                            @end="onToolDragEnd"
                         >
-                            <template v-for="card in (sectionToolLists[section._key] || [])">
+                            <template v-for="card in sectionToolLists[section._key]">
                                 <div
                                     v-if="card._type === 'builtin'"
                                     v-show="!isHidden(card._data.path)"
@@ -209,37 +212,37 @@
 
                             <!-- 工具列表 -->
                             <div class="manage-list">
-                                <!-- 内置工具（仅内置模块） -->
-                                <template v-if="section._type === 'builtin'">
-                                    <div
-                                        v-for="(tool, idx) in section._data.list"
-                                        :key="'m-' + section._key + '-' + idx"
-                                        class="manage-item"
-                                        :class="{ 'is-hidden': isHidden(tool.path) }"
-                                    >
-                                        <button class="manage-toggle" :class="{ 'is-off': isHidden(tool.path) }" @click="toggleVisibility(tool.path)">
-                                            <i :class="'eva ' + (isHidden(tool.path) ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
-                                        </button>
-                                        <span class="manage-name">{{ tool.name }}</span>
-                                        <span class="manage-tag">内置</span>
-                                    </div>
-                                </template>
-                                <!-- 自定义工具 -->
                                 <div
-                                    v-for="tool in customToolsForSection(section._data.title)"
-                                    :key="'mc-' + tool.id"
+                                    v-for="card in sectionToolLists[section._key]"
+                                    :key="'m-' + card._key"
                                     class="manage-item"
-                                    :class="{ 'is-hidden': tool.hidden }"
+                                    :class="{ 'is-hidden': card._type === 'builtin' ? isHidden(card._data.path) : card._data.hidden }"
                                 >
-                                    <button class="manage-toggle" :class="{ 'is-off': tool.hidden }" @click="toggleCustomTool(tool.id)">
-                                        <i :class="'eva ' + (tool.hidden ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
+                                    <button
+                                        v-if="card._type === 'builtin'"
+                                        class="manage-toggle"
+                                        :class="{ 'is-off': isHidden(card._data.path) }"
+                                        @click="toggleVisibility(card._data.path)"
+                                    >
+                                        <i :class="'eva ' + (isHidden(card._data.path) ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
                                     </button>
-                                    <span class="manage-name">{{ tool.name }}</span>
-                                    <a class="manage-url" :href="tool.url" target="_blank" rel="noopener noreferrer">{{ tool.url }}</a>
-                                    <button class="manage-delete" @click="removeCustomTool(tool.id)">
-                                        <i class="eva eva-trash-2-outline"></i>
-                                        删除
+                                    <button
+                                        v-else
+                                        class="manage-toggle"
+                                        :class="{ 'is-off': card._data.hidden }"
+                                        @click="toggleCustomTool(card._data.id)"
+                                    >
+                                        <i :class="'eva ' + (card._data.hidden ? 'eva-eye-off-outline' : 'eva-eye-outline')"></i>
                                     </button>
+                                    <span class="manage-name">{{ card._data.name }}</span>
+                                    <span v-if="card._type === 'builtin'" class="manage-tag">内置</span>
+                                    <template v-else>
+                                        <a class="manage-url" :href="card._data.url" target="_blank" rel="noopener noreferrer">{{ card._data.url }}</a>
+                                        <button class="manage-delete" @click="removeCustomTool(card._data.id)">
+                                            <i class="eva eva-trash-2-outline"></i>
+                                            删除
+                                        </button>
+                                    </template>
                                 </div>
                             </div>
 
@@ -497,8 +500,10 @@ export default {
             renameSectionName: '',
             sectionsList: [],
             sectionToolLists: {},
+            toolDragGroup: { name: 'tool-cards', pull: true, put: true },
             sortMode: false,
             isToolDragging: false,
+            toolLayoutLocked: false,
             suppressCardClickUntil: 0,
             // 卡片编辑模态窗
             cardEdit: null,
@@ -556,6 +561,9 @@ export default {
             });
             return arr;
         }
+    },
+    created() {
+        this.syncSectionsList();
     },
     mounted() {
         this.syncSectionsList();
@@ -646,11 +654,21 @@ export default {
         '$store.state.customSections'() { this.syncSectionsList(); },
         '$store.state.sectionOrder'() { this.syncSectionsList(); },
         '$store.state.customTools': {
-            handler() { this.syncToolLists(); },
+            handler() {
+                if (!this.isToolDragging) this.syncToolLists();
+            },
             deep: true
         },
         '$store.state.toolOrder': {
-            handler() { this.syncToolLists(); },
+            handler() {
+                if (!this.isToolDragging) this.syncToolLists();
+            },
+            deep: true
+        },
+        '$store.state.toolSections': {
+            handler() {
+                if (!this.isToolDragging) this.syncToolLists();
+            },
             deep: true
         },
         cardEditIconType() {
@@ -779,27 +797,103 @@ export default {
             this.syncToolLists();
         },
         syncToolLists() {
-            const next = {};
-            this.sectionsList.forEach(section => {
-                const builtInCards = section._type === 'builtin'
-                    ? section._data.list.map(tool => ({
+            const sections = this.sectionsList;
+            const sectionKeys = new Set(sections.map(section => section._key));
+            const buckets = {};
+            sections.forEach(section => {
+                buckets[section._key] = [];
+            });
+            const overrides = this.$store.state.toolSections || {};
+            this.$store.state.tools.forEach(origin => {
+                origin.list.forEach(tool => {
+                    const card = {
                         _key: 'builtin:' + tool.path,
                         _type: 'builtin',
                         _data: tool
-                    }))
-                    : [];
-                const customCards = this.customToolsForSection(section._data.title).map(tool => ({
+                    };
+                    const override = overrides[card._key];
+                    const target =
+                        override && sectionKeys.has(override)
+                            ? override
+                            : origin.title;
+                    const bucket = buckets[target] || buckets[origin.title];
+                    if (bucket) bucket.push(card);
+                });
+            });
+            this.$store.state.customTools.forEach(tool => {
+                const card = {
                     _key: 'custom:' + tool.id,
                     _type: 'custom',
                     _data: tool
-                }));
-                const cards = [...builtInCards, ...customCards];
+                };
+                const target = sections.find(
+                    section => section._data.title === tool.sectionTitle
+                );
+                if (target) buckets[target._key].push(card);
+            });
+            const next = {};
+            sections.forEach(section => {
+                const cards = buckets[section._key];
                 const order = (this.$store.state.toolOrder && this.$store.state.toolOrder[section._key]) || [];
-                const ordered = order.map(key => cards.find(card => card._key === key)).filter(Boolean);
-                const unordered = cards.filter(card => !order.includes(card._key));
-                next[section._key] = [...ordered, ...unordered];
+                const ordered = [];
+                const seen = new Set();
+                order.forEach(key => {
+                    const card = cards.find(item => item._key === key);
+                    if (!card || seen.has(key)) return;
+                    ordered.push(card);
+                    seen.add(key);
+                });
+                cards.forEach(card => {
+                    if (!seen.has(card._key)) ordered.push(card);
+                });
+                next[section._key] = ordered;
             });
             this.sectionToolLists = next;
+        },
+        persistToolLayout() {
+            const toolOrder = {};
+            const toolSections = {};
+            const origins = {};
+            this.$store.state.tools.forEach(section => {
+                section.list.forEach(tool => {
+                    origins['builtin:' + tool.path] = section.title;
+                });
+            });
+            const customById = {};
+            let customChanged = false;
+            const customTools = this.$store.state.customTools.map(tool => {
+                const copy = { ...tool };
+                customById[tool.id] = copy;
+                return copy;
+            });
+            const seen = new Set();
+            this.sectionsList.forEach(section => {
+                const cards = this.sectionToolLists[section._key] || [];
+                const order = [];
+                cards.forEach(card => {
+                    if (!card || !card._key || seen.has(card._key)) return;
+                    seen.add(card._key);
+                    order.push(card._key);
+                    if (card._type === 'builtin') {
+                        const origin = origins[card._key];
+                        if (origin && section._key !== origin) {
+                            toolSections[card._key] = section._key;
+                        }
+                    } else if (card._type === 'custom') {
+                        const copy = customById[card._data.id];
+                        if (copy && copy.sectionTitle !== section._data.title) {
+                            copy.sectionTitle = section._data.title;
+                            customChanged = true;
+                        }
+                    }
+                });
+                toolOrder[section._key] = order;
+            });
+            this.$store.commit('APPLY_TOOL_LAYOUT', {
+                toolOrder,
+                toolSections,
+                customTools: customChanged ? customTools : null
+            });
         },
         onToolDragStart(event) {
             this.isToolDragging = true;
@@ -808,15 +902,15 @@ export default {
             }
             document.body.classList.add('tool-card-drag-active');
         },
-        onToolDragEnd(sectionKey) {
-            const cards = this.sectionToolLists[sectionKey] || [];
-            this.$store.commit('SET_TOOL_ORDER', {
-                sectionKey,
-                order: cards.map(card => card._key)
-            });
+        onToolDragEnd() {
+            if (!this.isToolDragging || this.toolLayoutLocked) return;
+            this.toolLayoutLocked = true;
+            this.persistToolLayout();
             this.suppressCardClickUntil = Date.now() + 350;
             this.$nextTick(() => {
+                this.syncToolLists();
                 this.isToolDragging = false;
+                this.toolLayoutLocked = false;
                 document.body.classList.remove('tool-card-drag-active');
             });
         },
@@ -1173,6 +1267,7 @@ export default {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 10px;
         width: 100%;
+        min-height: 64px;
         --card-icon-bg: #f0f4f8;
         perspective: 720px;
         @media (max-width: 700px) {

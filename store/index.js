@@ -63,7 +63,8 @@ export const state = () => ({
     sectionIcons: {},
     customSections: [],
     sectionOrder: [],
-    toolOrder: {}
+    toolOrder: {},
+    toolSections: {}
 });
 
 const disabledMouseWheel = e => e.stopPropagation();
@@ -176,9 +177,19 @@ export const mutations = {
             state.customSections = state.customSections.filter(s => s.id !== id);
             state.customTools = state.customTools.filter(t => t.sectionTitle !== section.title);
             state.sectionOrder = state.sectionOrder.filter(k => k !== 'cs:' + id);
+            const sectionKey = 'cs:' + id;
             const nextToolOrder = { ...state.toolOrder };
-            delete nextToolOrder['cs:' + id];
+            delete nextToolOrder[sectionKey];
             state.toolOrder = nextToolOrder;
+            state.toolSections = Object.keys(state.toolSections || {}).reduce(
+                (next, cardKey) => {
+                    if (state.toolSections[cardKey] !== sectionKey) {
+                        next[cardKey] = state.toolSections[cardKey];
+                    }
+                    return next;
+                },
+                {}
+            );
         }
     },
     SET_SECTION_ORDER(state, order) {
@@ -189,5 +200,10 @@ export const mutations = {
             ...state.toolOrder,
             [sectionKey]: [...order]
         };
+    },
+    APPLY_TOOL_LAYOUT(state, { toolOrder, toolSections, customTools }) {
+        state.toolOrder = toolOrder;
+        state.toolSections = toolSections;
+        if (customTools) state.customTools = customTools;
     }
 };

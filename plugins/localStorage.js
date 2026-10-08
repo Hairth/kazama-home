@@ -1,7 +1,18 @@
 import createPersistedState from 'vuex-persistedstate';
 
 // 需要同步到云端的 key（不含 isAuthenticated、accessPassword 等敏感/临时 key）
-const CLOUD_KEYS = ['dark', 'setting', 'customTools', 'sectionNames', 'toolIcons', 'sectionIcons', 'customSections', 'sectionOrder', 'toolOrder'];
+const CLOUD_KEYS = [
+    'dark',
+    'setting',
+    'customTools',
+    'sectionNames',
+    'toolIcons',
+    'sectionIcons',
+    'customSections',
+    'sectionOrder',
+    'toolOrder',
+    'toolSections'
+];
 
 async function loadFromCloud(store) {
     try {
@@ -61,7 +72,22 @@ export default ({ store }) => {
 
         createPersistedState({
             key: 'miku_vuex',
-            paths: ['dark', 'setting', 'syncTime', 'noticeId', 'welcome', 'accessPassword', 'customTools', 'sectionNames', 'toolIcons', 'sectionIcons', 'customSections', 'sectionOrder', 'toolOrder']
+            paths: [
+                'dark',
+                'setting',
+                'syncTime',
+                'noticeId',
+                'welcome',
+                'accessPassword',
+                'customTools',
+                'sectionNames',
+                'toolIcons',
+                'sectionIcons',
+                'customSections',
+                'sectionOrder',
+                'toolOrder',
+                'toolSections'
+            ]
         })(store);
 
         // 页面刷新时，从 sessionStorage 恢复会话认证状态
