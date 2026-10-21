@@ -49,17 +49,22 @@
         <template v-else v-show="!searchText">
             <draggable
                 v-model="sectionsList"
+                class="sections-grid-wrapper"
                 :disabled="!sortMode"
                 handle=".section-drag-handle"
                 :animation="200"
                 @end="onSectionDragEnd"
             >
-                <nya-container
+                <ResizableSection
                     v-for="section in sectionsList"
                     v-show="!searchText && !isSectionHidden(section._key)"
                     :key="section._key"
+                    :section-key="section._key"
+                    :height="$store.state.sectionHeights[section._key] || 0"
+                    :resizable="!sortMode && !isSectionCollapsed(section._key) && managingSection !== section._key"
                     :icon="$store.state.sectionIcons[section._key] || (section._type === 'builtin' ? section._data.icon : 'folder-outline')"
                     :title="section._type === 'builtin' ? getSectionTitle(section._data.title) : section._data.title"
+                    @height-change="$store.commit('SET_SECTION_HEIGHT', { key: section._key, height: $event })"
                 >
                     <!-- 排序把手（排序模式） -->
                     <div v-if="sortMode" class="section-drag-handle">
@@ -340,7 +345,7 @@
                             </draggable>
                         </div>
                     </template>
-                </nya-container>
+                </ResizableSection>
             </draggable>
             <!-- 模块显示/隐藏控制面板 -->
             <transition name="section-vis-fade">
@@ -733,6 +738,7 @@ import Search from '~/components/Search';
 import isMobile from 'ismobilejs';
 import Welcome from '~/components/Welcome';
 import ServerUptime from '~/components/ServerUptime';
+import ResizableSection from '~/components/ResizableSection';
 import draggable from 'vuedraggable';
 import { animate, stagger, utils } from '~/assets/js/anime.esm.min.js';
 
@@ -743,6 +749,7 @@ export default {
         Search,
         Welcome,
         ServerUptime,
+        ResizableSection,
         draggable
     },
     head() {
@@ -2157,6 +2164,95 @@ body.dark .pre-weather-bar .logout-btn {
     }
 
 } // end .home
+
+/* ── 模块网格横向布局 ── */
+.home .sections-grid-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 28px;
+    width: 100%;
+
+    > .nya-container {
+        box-sizing: border-box;
+        min-width: 0;
+        margin: 0;
+        padding: 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 20px 12px;
+
+        > * {
+            min-width: 0;
+            grid-column: 1 / -1;
+        }
+
+        > .nya-title {
+            position: static;
+            grid-column: 1;
+            justify-self: start;
+            max-width: 100%;
+            box-sizing: border-box;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
+
+            i { flex-shrink: 0; }
+            span { min-width: 0; }
+        }
+
+        > .section-header-actions,
+        > .section-drag-handle {
+            position: static;
+            grid-column: 2;
+            justify-self: end;
+        }
+
+        .section-collapsed-banner,
+        .section-collapsed-left,
+        .manage-panel-top,
+        .manage-tools-header,
+        .manage-rename-wrap {
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .manage-panel {
+            margin-bottom: 0;
+        }
+
+        .manage-settings-row {
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+        }
+
+        .manage-setting-item {
+            min-width: 0;
+        }
+
+        .manage-input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+    }
+
+    @media (max-width: 1024px) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    @media (max-width: 600px) {
+        gap: 20px;
+
+        > .nya-container {
+            padding: 16px;
+            gap: 16px 8px;
+
+            > .nya-title { padding: 6px 8px; }
+            > .section-header-actions { gap: 4px; }
+            .section-collapse-btn,
+            .section-manage-btn { padding: 4px 6px; }
+        }
+    }
+}
 
 /* ── 全局卡片网格与拖拽样式 ── */
 .tool-card-grid {

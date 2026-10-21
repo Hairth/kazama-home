@@ -323,7 +323,7 @@ export default {
     }
     main {
         position: relative;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         box-sizing: border-box;
         padding: 0 20px;

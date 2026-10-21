@@ -10,6 +10,8 @@ const CLOUD_KEYS = [
     'sectionIcons',
     'customSections',
     'sectionOrder',
+    'sectionHeights',
+    'sectionHeightTimes',
     'toolOrder',
     'toolSections'
 ];
@@ -21,10 +23,21 @@ async function loadFromCloud(store) {
         const data = await res.json();
         if (!data) return;
         CLOUD_KEYS.forEach(key => {
+            if (key === 'sectionHeights' || key === 'sectionHeightTimes')
+                return;
             if (data[key] !== undefined) {
                 store.commit('SET_STORE', { key, value: data[key] });
             }
         });
+        if (
+            data.sectionHeights !== undefined ||
+            data.sectionHeightTimes !== undefined
+        ) {
+            store.commit('MERGE_SECTION_HEIGHTS', {
+                heights: data.sectionHeights,
+                times: data.sectionHeightTimes
+            });
+        }
     } catch (e) {
         // 本地开发或网络失败时静默降级，继续使用 localStorage
     }
@@ -33,7 +46,7 @@ async function loadFromCloud(store) {
 let saveTimer = null;
 let cloudLoading = false;
 
-function saveToCloud(store) {
+function saveToCloud(store, delay = 1500) {
     if (cloudLoading) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
@@ -50,7 +63,7 @@ function saveToCloud(store) {
         } catch (e) {
             // 静默失败，不影响本地使用
         }
-    }, 1500);
+    }, delay);
 }
 
 export default ({ store }) => {
@@ -85,6 +98,8 @@ export default ({ store }) => {
                 'sectionIcons',
                 'customSections',
                 'sectionOrder',
+                'sectionHeights',
+                'sectionHeightTimes',
                 'toolOrder',
                 'toolSections'
             ]
@@ -97,7 +112,7 @@ export default ({ store }) => {
             }
         } catch (e) {}
 
-        // 从云端加载（优先级最高，覆盖 localStorage）
+        // 从云端加载。模块高度按时间戳合并，其余配置仍以云端为准
         cloudLoading = true;
         await loadFromCloud(store);
         cloudLoading = false;
@@ -122,8 +137,11 @@ export default ({ store }) => {
 
 
         // 监听 store 变化，自动同步到云端
-        store.subscribe(() => {
-            saveToCloud(store);
+        store.subscribe(mutation => {
+            saveToCloud(
+                store,
+                mutation.type === 'SET_SECTION_HEIGHT' ? 300 : 1500
+            );
         });
     });
 };

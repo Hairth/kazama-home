@@ -1,71 +1,155 @@
 import _ from 'lodash';
 import env from '../env';
 
-export const state = () => ({
-    dark: false,
-    noticeId: false,
-    inFrames: false,
-    currentTool: null,
-    disabledMouseWheel: false,
-    ads: true,
-    loaded: false,
-    setting: {
-        animations: true,
-        hide: [],
-        favorites: [],
-        hideCategory: false,
-        hidePay: false,
-        hideNotice: false,
-        css: '',
-        js: '',
-        inNewTab: null,
-        hideSections: [],
-        bg: {
-            type: 'none',
-            upload: {
-                url: '',
-                deleteUrl: ''
-            },
-            customUrl: '',
-            blur: 4,
-            opacity: 50,
-            transparentEl: true
-        },
-        loginBg: {
-            type: 'none',
-            upload: {
-                url: '',
-                deleteUrl: ''
-            },
-            customUrl: '',
-            blur: 4,
-            opacity: 50
-        },
-        sakura: {
-            enabled: true,
-            fallSpeed: 1,
-            maxSize: 14,
-            minSize: 10,
-            delay: 300,
-            colorPreset: 0
+function readHeightMap(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const next = {};
+    Object.keys(raw).forEach(key => {
+        const value = Number(raw[key]);
+        if (!Number.isFinite(value) || value <= 0) return;
+        next[key] = Math.min(value, 10000);
+    });
+    return next;
+}
+
+function readTimeMap(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const next = {};
+    Object.keys(raw).forEach(key => {
+        const value = Number(raw[key]);
+        if (!Number.isFinite(value) || value <= 0) return;
+        next[key] = value;
+    });
+    return next;
+}
+
+function readStoredSectionLayout() {
+    const empty = { sectionHeights: {}, sectionHeightTimes: {} };
+    try {
+        if (typeof localStorage === 'undefined') return empty;
+        const raw = localStorage.getItem('miku_vuex');
+        if (!raw) return empty;
+        const data = JSON.parse(raw);
+        return {
+            sectionHeights: readHeightMap(data && data.sectionHeights),
+            sectionHeightTimes: readTimeMap(data && data.sectionHeightTimes)
+        };
+    } catch (e) {
+        return empty;
+    }
+}
+
+function mergeSectionHeights(
+    localHeights,
+    localTimes,
+    remoteHeights,
+    remoteTimes
+) {
+    const localsH = readHeightMap(localHeights);
+    const localsT = readTimeMap(localTimes);
+    const remotesH = readHeightMap(remoteHeights);
+    const remotesT = readTimeMap(remoteTimes);
+    const keys = new Set([
+        ...Object.keys(localsH),
+        ...Object.keys(localsT),
+        ...Object.keys(remotesH),
+        ...Object.keys(remotesT)
+    ]);
+    const heights = {};
+    const times = {};
+    keys.forEach(key => {
+        const localTime = localsT[key] || 0;
+        const remoteTime = remotesT[key] || 0;
+        const localHeight = localsH[key] || 0;
+        const remoteHeight = remotesH[key] || 0;
+        if (remoteTime > localTime) {
+            if (remoteHeight > 0) heights[key] = remoteHeight;
+            times[key] = remoteTime;
+        } else if (
+            remoteTime === localTime &&
+            !localHeight &&
+            remoteHeight > 0
+        ) {
+            heights[key] = remoteHeight;
+            if (remoteTime > 0) times[key] = remoteTime;
+        } else {
+            if (localHeight > 0) heights[key] = localHeight;
+            if (localTime > 0) times[key] = localTime;
         }
-    },
-    globalLoading: false,
-    welcome: true,
-    isMobile: {},
-    env: env,
-    syncTime: 0,
-    isAuthenticated: false,
-    accessPassword: '123456',
-    customTools: [],
-    sectionNames: {},
-    toolIcons: {},
-    sectionIcons: {},
-    customSections: [],
-    sectionOrder: [],
-    toolOrder: {},
-    toolSections: {}
-});
+    });
+    return { heights, times };
+}
+
+export const state = () => {
+    const storedSections = readStoredSectionLayout();
+    return {
+        dark: false,
+        noticeId: false,
+        inFrames: false,
+        currentTool: null,
+        disabledMouseWheel: false,
+        ads: true,
+        loaded: false,
+        setting: {
+            animations: true,
+            hide: [],
+            favorites: [],
+            hideCategory: false,
+            hidePay: false,
+            hideNotice: false,
+            css: '',
+            js: '',
+            inNewTab: null,
+            hideSections: [],
+            bg: {
+                type: 'none',
+                upload: {
+                    url: '',
+                    deleteUrl: ''
+                },
+                customUrl: '',
+                blur: 4,
+                opacity: 50,
+                transparentEl: true
+            },
+            loginBg: {
+                type: 'none',
+                upload: {
+                    url: '',
+                    deleteUrl: ''
+                },
+                customUrl: '',
+                blur: 4,
+                opacity: 50
+            },
+            sakura: {
+                enabled: true,
+                fallSpeed: 1,
+                maxSize: 14,
+                minSize: 10,
+                delay: 300,
+                colorPreset: 0
+            }
+        },
+        globalLoading: false,
+        welcome: true,
+        isMobile: {},
+        env: env,
+        syncTime: 0,
+        isAuthenticated: false,
+        accessPassword: '123456',
+        customTools: [],
+        sectionNames: {},
+        toolIcons: {},
+        sectionIcons: {},
+        customSections: [],
+        sectionOrder: [],
+        sectionHeights: storedSections.sectionHeights,
+        sectionHeightTimes: storedSections.sectionHeightTimes,
+        toolOrder: {},
+        toolSections: {}
+    };
+};
 
 const disabledMouseWheel = e => e.stopPropagation();
 export const mutations = {
@@ -152,6 +236,30 @@ export const mutations = {
         else next[key] = icon;
         state.sectionIcons = next;
     },
+    SET_SECTION_HEIGHT(state, { key, height }) {
+        if (!key) return;
+        const numeric = Number(height);
+        if (!Number.isFinite(numeric)) return;
+        const clamped = Math.min(10000, Math.max(0, numeric));
+        const next = { ...state.sectionHeights };
+        if (clamped === 0) delete next[key];
+        else next[key] = clamped;
+        state.sectionHeights = next;
+        state.sectionHeightTimes = {
+            ...(state.sectionHeightTimes || {}),
+            [key]: Date.now()
+        };
+    },
+    MERGE_SECTION_HEIGHTS(state, payload) {
+        const merged = mergeSectionHeights(
+            state.sectionHeights,
+            state.sectionHeightTimes,
+            payload && payload.heights,
+            payload && payload.times
+        );
+        state.sectionHeights = merged.heights;
+        state.sectionHeightTimes = merged.times;
+    },
     UPDATE_CUSTOM_TOOL(state, { id, name, url }) {
         const idx = state.customTools.findIndex(t => t.id === id);
         if (idx !== -1) {
@@ -178,6 +286,12 @@ export const mutations = {
             state.customTools = state.customTools.filter(t => t.sectionTitle !== section.title);
             state.sectionOrder = state.sectionOrder.filter(k => k !== 'cs:' + id);
             const sectionKey = 'cs:' + id;
+            const nextHeights = { ...state.sectionHeights };
+            delete nextHeights[sectionKey];
+            state.sectionHeights = nextHeights;
+            const nextTimes = { ...(state.sectionHeightTimes || {}) };
+            delete nextTimes[sectionKey];
+            state.sectionHeightTimes = nextTimes;
             const nextToolOrder = { ...state.toolOrder };
             delete nextToolOrder[sectionKey];
             state.toolOrder = nextToolOrder;
